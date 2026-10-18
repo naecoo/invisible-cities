@@ -1,4 +1,10 @@
 import * as THREE from 'three'
+import type { ThemeId } from '../data/cities'
+
+export interface CitySculpture {
+  group: THREE.Group
+  update: (t: number) => void
+}
 
 /**
  * 程序化城市雕塑 — 按 11 类主题生成半透明纸感建筑体
@@ -6,7 +12,7 @@ import * as THREE from 'three'
  */
 
 // 可复现随机
-function mulberry32(a) {
+function mulberry32(a: number): () => number {
   return function () {
     let t = (a += 0x6d2b79f5)
     t = Math.imul(t ^ (t >>> 15), t | 1)
@@ -15,7 +21,16 @@ function mulberry32(a) {
   }
 }
 
-function paperMaterial(color, opacity = 0.62, roughness = 0.86) {
+type Rng = () => number
+
+interface Palette {
+  stone: number
+  accent: number
+  warm: number
+  slate: number
+}
+
+function paperMaterial(color: number, opacity = 0.62, roughness = 0.86): THREE.MeshStandardMaterial {
   // 不透明纸感：跳过透明排序，1000+ 物体才能稳
   // opacity > 0.72 的构件才开透明（数量少）
   const useTransparent = opacity < 0.72
@@ -31,7 +46,7 @@ function paperMaterial(color, opacity = 0.62, roughness = 0.86) {
   })
 }
 
-function inkEdges(mesh, opacity = 0.28, color = 0x2a2420) {
+function inkEdges(mesh: THREE.Mesh, opacity = 0.28, color = 0x2a2420): THREE.LineSegments {
   const edges = new THREE.EdgesGeometry(mesh.geometry, 25)
   const line = new THREE.LineSegments(
     edges,
@@ -47,13 +62,13 @@ function inkEdges(mesh, opacity = 0.28, color = 0x2a2420) {
   return line
 }
 
-let edgeBudget = Infinity // 由 main.js 设置；0 = 不描边
+let edgeBudget = Infinity // 由 main.ts 设置；0 = 不描边
 
-export function setEdgeBudget(n) {
+export function setEdgeBudget(n: number): void {
   edgeBudget = n
 }
 
-function addWithEdges(group, mesh, edgeOpacity = 0.28) {
+function addWithEdges(group: THREE.Group, mesh: THREE.Mesh, edgeOpacity = 0.28): void {
   group.add(mesh)
   if (edgeBudget <= 0) return
   mesh.geometry.computeBoundingSphere?.()
@@ -68,7 +83,7 @@ function addWithEdges(group, mesh, edgeOpacity = 0.28) {
 
 // ── 主题雕塑生成器 ───────────────────────────
 
-function buildMemory(rng, palette) {
+function buildMemory(rng: Rng, palette: Palette): THREE.Group {
   const g = new THREE.Group()
   // 分层平台
   for (let i = 0; i < 5; i++) {
@@ -102,7 +117,7 @@ function buildMemory(rng, palette) {
   return g
 }
 
-function buildDesire(rng, palette) {
+function buildDesire(_rng: Rng, palette: Palette): THREE.Group {
   const g = new THREE.Group()
   // 螺旋塔
   const steps = 22
@@ -137,7 +152,7 @@ function buildDesire(rng, palette) {
   return g
 }
 
-function buildSigns(rng, palette) {
+function buildSigns(rng: Rng, palette: Palette): THREE.Group {
   const g = new THREE.Group()
   // 镜面片阵
   for (let i = 0; i < 16; i++) {
@@ -174,7 +189,7 @@ function buildSigns(rng, palette) {
   return g
 }
 
-function buildThin(rng, palette) {
+function buildThin(rng: Rng, palette: Palette): THREE.Group {
   const g = new THREE.Group()
   // 极细丝架 — 四根高柱
   for (let i = 0; i < 4; i++) {
@@ -211,7 +226,7 @@ function buildThin(rng, palette) {
   return g
 }
 
-function buildTrade(rng, palette) {
+function buildTrade(rng: Rng, palette: Palette): THREE.Group {
   const g = new THREE.Group()
   // 桥接网格
   for (let i = 0; i < 7; i++) {
@@ -252,7 +267,7 @@ function buildTrade(rng, palette) {
   return g
 }
 
-function buildEyes(rng, palette) {
+function buildEyes(rng: Rng, palette: Palette): THREE.Group {
   const g = new THREE.Group()
   // 环形观测台
   for (let i = 0; i < 3; i++) {
@@ -286,7 +301,7 @@ function buildEyes(rng, palette) {
   return g
 }
 
-function buildNames(rng, palette) {
+function buildNames(rng: Rng, palette: Palette): THREE.Group {
   const g = new THREE.Group()
   // 字碑林
   for (let i = 0; i < 12; i++) {
@@ -315,7 +330,7 @@ function buildNames(rng, palette) {
   return g
 }
 
-function buildDead(rng, palette) {
+function buildDead(rng: Rng, palette: Palette): THREE.Group {
   const g = new THREE.Group()
   // 下沉阶梯（倒金字塔感）
   for (let i = 0; i < 7; i++) {
@@ -349,7 +364,7 @@ function buildDead(rng, palette) {
   return g
 }
 
-function buildSky(rng, palette) {
+function buildSky(rng: Rng, palette: Palette): THREE.Group {
   const g = new THREE.Group()
   // 上升柱廊
   for (let i = 0; i < 11; i++) {
@@ -384,7 +399,7 @@ function buildSky(rng, palette) {
   return g
 }
 
-function buildContinuous(rng, palette) {
+function buildContinuous(rng: Rng, palette: Palette): THREE.Group {
   const g = new THREE.Group()
   // 无限重复街区网格（3×3，控制 draw call）
   const grid = 3
@@ -416,7 +431,7 @@ function buildContinuous(rng, palette) {
   return g
 }
 
-function buildHidden(rng, palette) {
+function buildHidden(rng: Rng, palette: Palette): THREE.Group {
   const g = new THREE.Group()
   // 围合迷宫墙
   const walls = 10
@@ -453,7 +468,9 @@ function buildHidden(rng, palette) {
   return g
 }
 
-const BUILDERS = {
+type Builder = (rng: Rng, palette: Palette) => THREE.Group
+
+const BUILDERS: Record<string, Builder> = {
   memory: buildMemory,
   desire: buildDesire,
   signs: buildSigns,
@@ -468,7 +485,7 @@ const BUILDERS = {
 }
 
 // 主题色板（与 CSS 呼应）
-const PALETTES = {
+const PALETTES: Record<string, Palette> = {
   memory: { stone: 0xd8cfc0, accent: 0xc45c3e, warm: 0xe8dcc8, slate: 0xa8b0b4 },
   desire: { stone: 0xd4c4b8, accent: 0xb85a4a, warm: 0xe4d0c0, slate: 0xa89890 },
   signs: { stone: 0xd0c4b0, accent: 0x8b6b4a, warm: 0xe0d4bc, slate: 0xa89880 },
@@ -486,7 +503,7 @@ const PALETTES = {
  * 创建一座城的雕塑
  * @returns {{ group: THREE.Group, update: (t:number)=>void }}
  */
-export function createCitySculpture(themeId, seed, scale = 1) {
+export function createCitySculpture(themeId: ThemeId | string, seed: number, scale = 1): CitySculpture {
   const rng = mulberry32(seed * 9973 + 17)
   const palette = PALETTES[themeId] || PALETTES.memory
   const builder = BUILDERS[themeId] || buildMemory
@@ -500,7 +517,7 @@ export function createCitySculpture(themeId, seed, scale = 1) {
   const bobFreq = 0.25 + rng() * 0.35
   const phase = rng() * Math.PI * 2
 
-  function update(t) {
+  function update(t: number): void {
     group.rotation.y += spin
     group.position.y = Math.sin(t * bobFreq + phase) * bobAmp
   }
@@ -511,7 +528,7 @@ export function createCitySculpture(themeId, seed, scale = 1) {
 /**
  * 创建星图中的小光点（总览用）
  */
-export function createCityBeacon(colorHex, size = 1) {
+export function createCityBeacon(colorHex: number, size = 1): THREE.Group {
   const g = new THREE.Group()
   const core = new THREE.Mesh(
     new THREE.SphereGeometry(0.22 * size, 12, 10),

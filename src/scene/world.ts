@@ -1,9 +1,23 @@
 import * as THREE from 'three'
 
+export interface World {
+  scene: THREE.Scene
+  camera: THREE.PerspectiveCamera
+  renderer: THREE.WebGLRenderer
+  render: () => void
+  lightTarget: {
+    keyPos: THREE.Vector3
+    fogDensity: number
+    exposure: number
+  }
+  onResize: () => void
+  dispose: () => void
+}
+
 /**
  * 纸感光域：柔和半球光 + 单向暖侧光 + 雾 + 背景球
  */
-export function createWorld(canvas) {
+export function createWorld(canvas: HTMLCanvasElement): World {
   const renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: true,
@@ -160,7 +174,8 @@ export function createWorld(canvas) {
     dust.position.y = Math.sin(performance.now() * 0.00012) * 0.4
 
     renderer.toneMappingExposure += (lightTarget.exposure - renderer.toneMappingExposure) * 0.04
-    scene.fog.density += (lightTarget.fogDensity - scene.fog.density) * 0.04
+    const fog = scene.fog as THREE.FogExp2
+    fog.density += (lightTarget.fogDensity - fog.density) * 0.04
 
     renderer.render(scene, camera)
   }

@@ -1,26 +1,40 @@
-import { CITY_BY_ID, THEME_BY_ID, CITIES } from '../data/cities.js'
+import { CITY_BY_ID, THEME_BY_ID, CITIES } from '../data/cities'
 
 /**
  * 城市详情浮层
  */
-export function createOverlay({ onSelect, onClose }) {
-  const root = document.getElementById('city-overlay')
-  const backdrop = document.getElementById('overlay-backdrop')
-  const closeBtn = document.getElementById('overlay-close')
-  const themeEl = document.getElementById('overlay-theme')
-  const titleEl = document.getElementById('overlay-title')
-  const itEl = document.getElementById('overlay-it')
-  const mottoEl = document.getElementById('overlay-motto')
-  const noteEl = document.getElementById('overlay-note')
-  const themeTag = document.getElementById('overlay-theme-tag')
-  const chapterEl = document.getElementById('overlay-chapter')
-  const nEl = document.getElementById('overlay-n')
-  const prevBtn = document.getElementById('overlay-prev')
-  const nextBtn = document.getElementById('overlay-next')
+function mustEl<T extends HTMLElement>(id: string): T {
+  const node = document.getElementById(id)
+  if (!node) throw new Error(`missing #${id}`)
+  return node as T
+}
 
-  let currentId = null
+export function createOverlay(opts: {
+  onSelect?: (id: string) => void
+  onClose?: () => void
+}): {
+  open: (cityId: string) => void
+  close: () => void
+  readonly current: string | null
+} {
+  const { onSelect, onClose } = opts
+  const root = mustEl('city-overlay')
+  const backdrop = mustEl('overlay-backdrop')
+  const closeBtn = mustEl('overlay-close')
+  const themeEl = mustEl('overlay-theme')
+  const titleEl = mustEl('overlay-title')
+  const itEl = mustEl('overlay-it')
+  const mottoEl = mustEl('overlay-motto')
+  const noteEl = mustEl('overlay-note')
+  const themeTag = mustEl('overlay-theme-tag')
+  const chapterEl = mustEl('overlay-chapter')
+  const nEl = mustEl('overlay-n')
+  const prevBtn = mustEl('overlay-prev')
+  const nextBtn = mustEl('overlay-next')
 
-  function open(cityId) {
+  let currentId: string | null = null
+
+  function open(cityId: string): void {
     const city = CITY_BY_ID[cityId]
     if (!city) return
     currentId = cityId
@@ -42,14 +56,14 @@ export function createOverlay({ onSelect, onClose }) {
     onSelect?.(cityId)
   }
 
-  function close() {
+  function close(): void {
     root.classList.remove('is-open')
     root.setAttribute('aria-hidden', 'true')
     currentId = null
     onClose?.()
   }
 
-  function step(dir) {
+  function step(dir: number): void {
     if (!currentId) return
     const idx = CITIES.findIndex((c) => c.id === currentId)
     const next = CITIES[(idx + dir + CITIES.length) % CITIES.length]

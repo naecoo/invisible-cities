@@ -1,27 +1,27 @@
 import * as THREE from 'three'
 import gsap from 'gsap'
-import { THEMES, CITIES, CITY_BY_ID, THEME_BY_ID, citiesOfTheme } from './data/cities.js'
-import { createWorld } from './scene/world.js'
-import { createCitySculpture, setEdgeBudget } from './scene/cityGeometry.js'
+import { THEMES, CITIES, THEME_BY_ID, citiesOfTheme } from './data/cities'
+import { createWorld } from './scene/world'
+import { createCitySculpture, setEdgeBudget } from './scene/cityGeometry'
 import {
   buildThemeSections,
   buildAtlas,
   buildNav,
   createScrollTracker,
   observeReveals,
-} from './ui/narrative.js'
-import { createOverlay } from './ui/overlay.js'
+} from './ui/narrative'
+import { createOverlay } from './ui/overlay'
 
 /* ═══════════════════════════════════════════
    启动
    ═══════════════════════════════════════════ */
 
-const canvas = document.getElementById('gl')
+const canvas = document.getElementById('gl') as HTMLCanvasElement
 const world = createWorld(canvas)
-const { scene, camera, renderer } = world
+const { scene, camera } = world
 
 // 光标 — 只写 transform，零布局
-const cursor = document.getElementById('cursor')
+const cursor = mustEl('cursor')
 const cursorState = { x: 0, y: 0, tx: 0, ty: 0, dirty: false }
 const mouse = { x: 0, y: 0 }
 const scroll = { p: 0, section: 'hero', label: '序', smooth: 0 }
@@ -55,9 +55,19 @@ document.addEventListener('pointerover', (e) => {
    城市星图布局 — 螺旋星系
    ═══════════════════════════════════════════ */
 
-const cityNodes = new Map() // id -> { group, update, worldPos, themeId }
+interface CityNode {
+  group: THREE.Group
+  update: (t: number) => void
+  beacon: null
+  beaconIndex: number
+  worldPos: THREE.Vector3
+  themeId: string
+  index: number
+}
 
-function layoutCityPositions() {
+const cityNodes = new Map<string, CityNode>()
+
+function layoutCityPositions(): Map<string, { x: number; y: number; z: number; themeId: string }> {
   const positions = new Map()
   THEMES.forEach((theme, ti) => {
     const cities = citiesOfTheme(theme.id)
@@ -82,13 +92,17 @@ function layoutCityPositions() {
   return positions
 }
 
-function buildConstellation() {
+function buildConstellation(): {
+  sculptureRoot: THREE.Group
+  updates: Array<(t: number) => void>
+  beaconPoints: THREE.Points
+  haloPoints: THREE.Points
+} {
   const positions = layoutCityPositions()
   const sculptureRoot = new THREE.Group()
   scene.add(sculptureRoot)
 
-  // 共享几何缓存
-  const updates = []
+  const updates: Array<(t: number) => void> = []
 
   // 信标统一为 Points（1 次 draw call 画 55 点）
   const beaconCount = CITIES.length
@@ -96,7 +110,7 @@ function buildConstellation() {
   const beaconCol = new Float32Array(beaconCount * 3)
 
   CITIES.forEach((city, i) => {
-    const pos = positions.get(city.id)
+    const pos = positions.get(city.id)!
     const theme = THEME_BY_ID[city.theme]
 
     // 每座城最多 2 条描边
@@ -170,7 +184,7 @@ function buildConstellation() {
   })
   THEMES.forEach((theme) => {
     const cities = citiesOfTheme(theme.id)
-    const pts = cities.map((c) => cityNodes.get(c.id).worldPos.clone())
+    const pts = cities.map((c) => cityNodes.get(c.id)!.worldPos.clone())
     for (let i = 0; i < pts.length - 1; i++) {
       const geo = new THREE.BufferGeometry().setFromPoints([pts[i], pts[i + 1]])
       sculptureRoot.add(new THREE.Line(geo, lineMat))
@@ -193,8 +207,8 @@ function buildConstellation() {
     depthWrite: false,
   })
   for (let ti = 0; ti < THEMES.length - 1; ti++) {
-    const a = cityNodes.get(citiesOfTheme(THEMES[ti].id)[0].id).worldPos
-    const b = cityNodes.get(citiesOfTheme(THEMES[ti + 1].id)[0].id).worldPos
+    const a = cityNodes.get(citiesOfTheme(THEMES[ti].id)[0].id)!.worldPos
+    const b = cityNodes.get(citiesOfTheme(THEMES[ti + 1].id)[0].id)!.worldPos
     const geo = new THREE.BufferGeometry().setFromPoints([a, b])
     sculptureRoot.add(new THREE.Line(geo, interMat))
   }
@@ -341,7 +355,7 @@ const camKeys = [
   { p: 1.0, pos: [0, 22, 64], look: [0, 16, 0], fov: 42 },
 ]
 
-function sampleCamPath(p) {
+function sampleCamPath(p: number): { pos: THREE.Vector3; look: THREE.Vector3; fov: number } {
   const t = Math.max(0, Math.min(1, p))
   let i = 0
   while (i < camKeys.length - 2 && camKeys[i + 1].p < t) i++
@@ -376,11 +390,17 @@ const camSmooth = {
    DOM 构建
    ═══════════════════════════════════════════ */
 
-const themeRoot = document.getElementById('theme-sections')
-const atlasGrid = document.getElementById('atlas-grid')
-const themeNav = document.getElementById('theme-nav')
-const progressFill = document.getElementById('progress-fill')
-const progressLabel = document.getElementById('progress-label')
+function mustEl<T extends HTMLElement>(id: string): T {
+  const node = document.getElementById(id)
+  if (!node) throw new Error(`missing #${id}`)
+  return node as T
+}
+
+const themeRoot = mustEl('theme-sections')
+const atlasGrid = mustEl('atlas-grid')
+const themeNav = mustEl('theme-nav')
+const progressFill = mustEl('progress-fill')
+const progressLabel = mustEl('progress-label')
 
 const overlay = createOverlay({
   onSelect(cityId) {
@@ -391,15 +411,15 @@ const overlay = createOverlay({
   },
 })
 
-function onCityClick(cityId) {
+function onCityClick(cityId: string): void {
   overlay.open(cityId)
 }
 
-function onThemeJump(themeId) {
+function onThemeJump(themeId: string): void {
   const sec = document.querySelector(`[data-section="theme-${themeId}"]`)
   if (sec) {
     window.scrollTo({
-      top: sec.offsetTop - 40,
+      top: (sec as HTMLElement).offsetTop - 40,
       behavior: 'smooth',
     })
   }
@@ -429,7 +449,7 @@ createScrollTracker({
 observeReveals()
 
 // 回到顶部
-document.getElementById('back-top').addEventListener('click', () => {
+mustEl('back-top').addEventListener('click', () => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 })
 
@@ -437,17 +457,15 @@ document.getElementById('back-top').addEventListener('click', () => {
    城市聚焦
    ═══════════════════════════════════════════ */
 
-let focusId = null
 const focusCam = {
   pos: new THREE.Vector3(),
   look: new THREE.Vector3(),
   active: false,
 }
 
-function focusCity(cityId) {
+function focusCity(cityId: string): void {
   const node = cityNodes.get(cityId)
   if (!node) return
-  focusId = cityId
   focusCam.active = true
 
   const offset = new THREE.Vector3(10, 7, 12)
@@ -456,12 +474,14 @@ function focusCity(cityId) {
 
   // 提亮该雕塑
   node.group.traverse((obj) => {
-    if (obj.isLineSegments && obj.material) {
-      obj.material.opacity = 0.55
+    const o = obj as THREE.Mesh
+    if ((obj as THREE.LineSegments).isLineSegments && o.material) {
+      ;(o.material as THREE.Material).opacity = 0.55
     }
-    if (obj.isMesh && obj.material && obj.material.emissive) {
-      obj.material.emissive.setHex(0x332211)
-      obj.material.emissiveIntensity = 0.15
+    if (o.isMesh && o.material && (o.material as THREE.MeshStandardMaterial).emissive) {
+      const m = o.material as THREE.MeshStandardMaterial
+      m.emissive.setHex(0x332211)
+      m.emissiveIntensity = 0.15
     }
   })
 
@@ -485,8 +505,7 @@ function focusCity(cityId) {
   })
 }
 
-function releaseFocus() {
-  focusId = null
+function releaseFocus(): void {
   focusCam.active = false
   cityNodes.forEach((node) => {
     gsap.to(node.group.scale, {
@@ -498,11 +517,12 @@ function releaseFocus() {
       overwrite: true,
     })
     node.group.traverse((obj) => {
-      if (obj.isLineSegments && obj.material) {
-        obj.material.opacity = 0.28
+      const o = obj as THREE.Mesh
+      if ((obj as THREE.LineSegments).isLineSegments && o.material) {
+        ;(o.material as THREE.Material).opacity = 0.28
       }
-      if (obj.isMesh && obj.material && obj.material.emissive) {
-        obj.material.emissiveIntensity = 0
+      if (o.isMesh && o.material && (o.material as THREE.MeshStandardMaterial).emissive) {
+        ;(o.material as THREE.MeshStandardMaterial).emissiveIntensity = 0
       }
     })
   })
@@ -512,16 +532,19 @@ function releaseFocus() {
    Hero 入场动画
    ═══════════════════════════════════════════ */
 
-function playIntro() {
+function playIntro(): void {
   // 雕塑入场：从星尘放大成形
-  cityNodes.forEach((node, id) => {
+  let introIndex = 0
+  cityNodes.forEach((node) => {
+    const delay = 0.15 + (introIndex % 12) * 0.06
+    introIndex++
     node.group.scale.setScalar(0.01)
     gsap.to(node.group.scale, {
       x: 0.42,
       y: 0.42,
       z: 0.42,
       duration: 1.6,
-      delay: 0.15 + (id % 12) * 0.06,
+      delay,
       ease: 'power3.out',
     })
   })
@@ -550,10 +573,8 @@ function playIntro() {
    ═══════════════════════════════════════════ */
 
 const clock = new THREE.Clock()
-let raf = 0
-
-function tick() {
-  raf = requestAnimationFrame(tick)
+function tick(): void {
+  requestAnimationFrame(tick)
   const t = clock.getElapsedTime()
 
   // 光标插值
@@ -595,21 +616,25 @@ function tick() {
     // Hero 之后淡出主雕塑
     const heroFade = 1 - Math.min(1, scroll.smooth * 10)
     heroSculpture.traverse((obj) => {
-      if (obj.material && 'opacity' in obj.material) {
-        const base = obj.userData.baseOpacity ?? obj.material.opacity
+      const mesh = obj as THREE.Mesh
+      const mat = mesh.material as THREE.MeshStandardMaterial | undefined
+      if (mat && typeof mat.opacity === 'number') {
+        const base = (obj.userData.baseOpacity as number | undefined) ?? mat.opacity
         obj.userData.baseOpacity = base
-        obj.material.opacity = base * Math.max(0, heroFade)
+        mat.opacity = base * Math.max(0, heroFade)
       }
     })
     heroSculpture.visible = heroFade > 0.02
   }
 
   // 信标呼吸（Points 整体轻脉动）
-  if (beaconPoints) {
+  {
     const pulse = 1 + Math.sin(t * 1.2) * 0.08
-    beaconPoints.material.size = 1.1 * pulse
-    haloPoints.material.size = 3.2 * pulse
-    haloPoints.material.opacity = 0.1 + Math.sin(t * 0.8) * 0.03
+    const bMat = beaconPoints.material as THREE.PointsMaterial
+    const hMat = haloPoints.material as THREE.PointsMaterial
+    bMat.size = 1.1 * pulse
+    hMat.size = 3.2 * pulse
+    hMat.opacity = 0.1 + Math.sin(t * 0.8) * 0.03
   }
 
   // 灯光/雾随主题微调
@@ -631,8 +656,8 @@ function tick() {
    加载完成 → 揭幕
    ═══════════════════════════════════════════ */
 
-function boot() {
-  const loader = document.getElementById('loader')
+function boot(): void {
+  const loader = mustEl('loader')
   // 预热一帧
   world.render()
   requestAnimationFrame(() => {
@@ -652,6 +677,17 @@ if (document.fonts?.ready) {
 }
 
 // 调试：在 window 上挂一点句柄
+declare global {
+  interface Window {
+    __invisibleCities?: {
+      world: typeof world
+      cityNodes: typeof cityNodes
+      focusCity: typeof focusCity
+      scroll: typeof scroll
+    }
+  }
+}
+
 window.__invisibleCities = {
   world,
   cityNodes,

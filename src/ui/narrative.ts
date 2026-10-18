@@ -1,4 +1,4 @@
-import { THEMES, CITIES, citiesOfTheme, THEME_BY_ID } from '../data/cities.js'
+import { THEMES, CITIES, citiesOfTheme, THEME_BY_ID } from '../data/cities'
 
 const THEME_SVG = {
   memory: `<circle cx="60" cy="60" r="28" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="42" y="42" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1" opacity=".5"/><rect x="50" y="50" width="20" height="20" fill="currentColor" opacity=".15"/><line x1="60" y1="20" x2="60" y2="40" stroke="currentColor" stroke-width="1"/><line x1="60" y1="80" x2="60" y2="100" stroke="currentColor" stroke-width="1"/>`,
@@ -18,14 +18,18 @@ const THEME_SVG = {
  * 生成主题章节 DOM + 星图总览 + 导航
  */
 
-function el(tag, className, html) {
+function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className?: string,
+  html?: string
+): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
   if (className) node.className = className
   if (html != null) node.innerHTML = html
   return node
 }
 
-export function buildThemeSections(root, onCityClick) {
+export function buildThemeSections(root: HTMLElement, onCityClick: (id: string) => void): void {
   THEMES.forEach((theme, ti) => {
     const section = el('section', 'section theme-block')
     section.dataset.section = `theme-${theme.id}`
@@ -71,7 +75,7 @@ export function buildThemeSections(root, onCityClick) {
     const visual = el('div', 'theme-visual reveal reveal-delay-2')
 
     const cloud = el('div', 'theme-dot-cloud')
-    const rng = (seed) => {
+    const rng = (seed: number): (() => number) => {
       let s = seed
       return () => {
         s = (s * 16807) % 2147483647
@@ -115,7 +119,7 @@ export function buildThemeSections(root, onCityClick) {
   })
 }
 
-export function buildAtlas(gridEl, onCityClick) {
+export function buildAtlas(gridEl: HTMLElement, onCityClick: (id: string) => void): void {
   CITIES.forEach((city, i) => {
     const theme = THEME_BY_ID[city.theme]
     const cell = el('button', 'atlas-cell reveal')
@@ -139,7 +143,7 @@ export function buildAtlas(gridEl, onCityClick) {
   })
 }
 
-export function buildNav(navEl, onThemeJump) {
+export function buildNav(navEl: HTMLElement, onThemeJump: (id: string) => void): void {
   THEMES.forEach((theme) => {
     const btn = el('button', '', theme.name.replace('城市与', '').replace('的城市', ''))
     btn.type = 'button'
@@ -153,12 +157,16 @@ export function buildNav(navEl, onThemeJump) {
 /**
  * 滚动进度 + 章节高亮
  */
-export function createScrollTracker({ onProgress, onSection }) {
-  const sections = () => [
-    ...document.querySelectorAll('[data-section]'),
-  ]
+export function createScrollTracker(opts: {
+  onProgress: (p: number) => void
+  onSection: (current: string, label: string) => void
+}): { measure: () => void } {
+  const { onProgress, onSection } = opts
 
-  function measure() {
+  const sections = (): HTMLElement[] =>
+    [...document.querySelectorAll<HTMLElement>('[data-section]')]
+
+  function measure(): void {
     const scrollY = window.scrollY
     const docH = document.documentElement.scrollHeight - window.innerHeight
     const p = docH > 0 ? scrollY / docH : 0
@@ -170,7 +178,7 @@ export function createScrollTracker({ onProgress, onSection }) {
     for (const sec of sections()) {
       const top = sec.offsetTop
       if (mid >= top) {
-        current = sec.dataset.section
+        current = sec.dataset.section ?? 'hero'
         if (current.startsWith('theme-')) {
           const t = THEME_BY_ID[current.replace('theme-', '')]
           label = t ? t.name.replace('城市与', '') : label
@@ -194,7 +202,7 @@ export function createScrollTracker({ onProgress, onSection }) {
 /**
  * IntersectionObserver 揭示
  */
-export function observeReveals() {
+export function observeReveals(): IntersectionObserver {
   const io = new IntersectionObserver(
     (entries) => {
       entries.forEach((e) => {

@@ -1,7 +1,43 @@
 // 五十五座看不见的城市 — 数据层
 // 主题分类依据原著意大利语维基百科章节结构
 
-export const THEMES = [
+export type ThemeId =
+  | 'memory'
+  | 'desire'
+  | 'signs'
+  | 'thin'
+  | 'trade'
+  | 'eyes'
+  | 'names'
+  | 'dead'
+  | 'sky'
+  | 'continuous'
+  | 'hidden'
+
+export interface Theme {
+  id: ThemeId
+  name: string
+  latin: string
+  motif: string
+  color: string
+  emblem: string
+  epigraph: string
+  blurb: string
+}
+
+export interface City {
+  id: string
+  it: string
+  zh: string
+  theme: ThemeId
+  n: number
+  chapter: number
+  seed: number
+  motto: string
+  note: string
+}
+
+export const THEMES: Theme[] = [
   {
     id: 'memory',
     name: '城市与记忆',
@@ -114,7 +150,7 @@ export const THEMES = [
   },
 ]
 
-export const CITIES = [
+export const CITIES: City[] = [
   // ── 城市与记忆 ─────────────────────────────
   {
     id: 'diomira', it: 'Diomira', zh: '迪奥米拉', theme: 'memory', n: 1, chapter: 1,
@@ -468,10 +504,14 @@ export const CITIES = [
   },
 ]
 
-export const CITY_BY_ID = Object.fromEntries(CITIES.map((c) => [c.id, c]))
-export const THEME_BY_ID = Object.fromEntries(THEMES.map((t) => [t.id, t]))
+export const CITY_BY_ID: Record<string, City> = Object.fromEntries(
+  CITIES.map((c) => [c.id, c])
+)
+export const THEME_BY_ID: Record<string, Theme> = Object.fromEntries(
+  THEMES.map((t) => [t.id, t])
+)
 
-export function citiesOfTheme(themeId) {
+export function citiesOfTheme(themeId: string): City[] {
   return CITIES.filter((c) => c.theme === themeId)
 }
 
