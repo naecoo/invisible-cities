@@ -63,12 +63,6 @@ export function buildThemeSections(root, onCityClick) {
         <span class="theme-city-it">${city.it}</span>
       `
       row.addEventListener('click', () => onCityClick(city.id))
-      row.addEventListener('mouseenter', () => {
-        window.__invisibleCities?.cityNodes?.get(city.id)?.beacon?.scale?.setScalar(2.2)
-      })
-      row.addEventListener('mouseleave', () => {
-        window.__invisibleCities?.cityNodes?.get(city.id)?.beacon?.scale?.setScalar(1)
-      })
       list.appendChild(row)
     })
     copy.appendChild(list)

@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import gsap from 'gsap'
 import { THEMES, CITIES, CITY_BY_ID, THEME_BY_ID, citiesOfTheme } from './data/cities.js'
 import { createWorld } from './scene/world.js'
-import { createCitySculpture, createCityBeacon } from './scene/cityGeometry.js'
+import { createCitySculpture, setEdgeBudget } from './scene/cityGeometry.js'
 import {
   buildThemeSections,
   buildAtlas,
@@ -20,39 +20,36 @@ const canvas = document.getElementById('gl')
 const world = createWorld(canvas)
 const { scene, camera, renderer } = world
 
-// 光标
+// 光标 — 只写 transform，零布局
 const cursor = document.getElementById('cursor')
-const cursorState = { x: 0, y: 0, tx: 0, ty: 0 }
-window.addEventListener('mousemove', (e) => {
-  cursorState.tx = e.clientX
-  cursorState.ty = e.clientY
-})
-document.addEventListener('mouseover', (e) => {
-  const t = e.target
-  if (
-    t.closest('button') ||
-    t.closest('a') ||
-    t.closest('.theme-city-row') ||
-    t.closest('.atlas-cell')
-  ) {
-    document.body.classList.add('is-hovering')
-  } else {
-    document.body.classList.remove('is-hovering')
-  }
-})
-
-// 滚动状态
-const scroll = { p: 0, section: 'hero', label: '序', smooth: 0 }
+const cursorState = { x: 0, y: 0, tx: 0, ty: 0, dirty: false }
 const mouse = { x: 0, y: 0 }
+const scroll = { p: 0, section: 'hero', label: '序', smooth: 0 }
 
 window.addEventListener(
   'mousemove',
   (e) => {
+    cursorState.tx = e.clientX
+    cursorState.ty = e.clientY
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1
     mouse.y = (e.clientY / window.innerHeight) * 2 - 1
+    cursorState.dirty = true
   },
   { passive: true }
 )
+
+// 悬停态用 pointerover + 一次 closest（事件委托，避免每帧遍历）
+document.addEventListener('pointerover', (e) => {
+  const t = e.target
+  if (!(t instanceof Element)) return
+  document.body.classList.toggle(
+    'is-hovering',
+    !!(t.closest('button') || t.closest('a') || t.closest('.theme-city-row') || t.closest('.atlas-cell'))
+  )
+})
+
+// 滚动状态
+// (scroll / mouse 已在上方声明)
 
 /* ═══════════════════════════════════════════
    城市星图布局 — 螺旋星系
@@ -93,10 +90,17 @@ function buildConstellation() {
   // 共享几何缓存
   const updates = []
 
+  // 信标统一为 Points（1 次 draw call 画 55 点）
+  const beaconCount = CITIES.length
+  const beaconPos = new Float32Array(beaconCount * 3)
+  const beaconCol = new Float32Array(beaconCount * 3)
+
   CITIES.forEach((city, i) => {
     const pos = positions.get(city.id)
     const theme = THEME_BY_ID[city.theme]
 
+    // 每座城最多 2 条描边
+    setEdgeBudget(2)
     // 雕塑 — 适度细节
     const { group, update } = createCitySculpture(city.theme, city.seed, 0.42 + (city.n % 3) * 0.03)
     group.position.set(pos.x, pos.y, pos.z)
@@ -104,21 +108,58 @@ function buildConstellation() {
     sculptureRoot.add(group)
     updates.push(update)
 
-    // 信标光点
-    const themeColor = new THREE.Color(theme.color)
-    const beacon = createCityBeacon(themeColor.getHex(), 1.15)
-    beacon.position.set(pos.x, pos.y + 3.2, pos.z)
-    sculptureRoot.add(beacon)
+    // 信标坐标 / 主题色
+    beaconPos[i * 3] = pos.x
+    beaconPos[i * 3 + 1] = pos.y + 3.2
+    beaconPos[i * 3 + 2] = pos.z
+    const c = new THREE.Color(theme.color)
+    beaconCol[i * 3] = c.r
+    beaconCol[i * 3 + 1] = c.g
+    beaconCol[i * 3 + 2] = c.b
 
     cityNodes.set(city.id, {
       group,
       update,
-      beacon,
+      beacon: null,
+      beaconIndex: i,
       worldPos: new THREE.Vector3(pos.x, pos.y + 2, pos.z),
       themeId: city.theme,
       index: i,
     })
   })
+
+  const beaconGeo = new THREE.BufferGeometry()
+  beaconGeo.setAttribute('position', new THREE.BufferAttribute(beaconPos, 3))
+  beaconGeo.setAttribute('color', new THREE.BufferAttribute(beaconCol, 3))
+  const beaconPoints = new THREE.Points(
+    beaconGeo,
+    new THREE.PointsMaterial({
+      size: 1.1,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.95,
+      depthWrite: false,
+      sizeAttenuation: true,
+    })
+  )
+  sculptureRoot.add(beaconPoints)
+
+  // 光晕点（更大更淡）
+  const haloGeo = new THREE.BufferGeometry()
+  haloGeo.setAttribute('position', new THREE.BufferAttribute(beaconPos, 3))
+  haloGeo.setAttribute('color', new THREE.BufferAttribute(beaconCol, 3))
+  const haloPoints = new THREE.Points(
+    haloGeo,
+    new THREE.PointsMaterial({
+      size: 3.2,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.12,
+      depthWrite: false,
+      sizeAttenuation: true,
+    })
+  )
+  sculptureRoot.add(haloPoints)
 
   // 同主题金色连线
   const lineMat = new THREE.LineBasicMaterial({
@@ -158,10 +199,12 @@ function buildConstellation() {
     sculptureRoot.add(new THREE.Line(geo, interMat))
   }
 
-  return { sculptureRoot, updates }
+  return { sculptureRoot, updates, beaconPoints, haloPoints }
 }
 
 const constellation = buildConstellation()
+const beaconPoints = constellation.beaconPoints
+const haloPoints = constellation.haloPoints
 
 // ── Hero 主雕塑：十一种母题的合体之城 ──
 function buildHeroCenterpiece() {
@@ -171,7 +214,7 @@ function buildHeroCenterpiece() {
   // 中央升塔
   const spire = new THREE.Mesh(
     new THREE.CylinderGeometry(0.4, 1.8, 14, 7),
-    new THREE.MeshPhysicalMaterial({
+    new THREE.MeshStandardMaterial({
       color: 0xe8dcc8,
       transparent: true,
       opacity: 0.72,
@@ -193,7 +236,7 @@ function buildHeroCenterpiece() {
     const s = 5.2 - t * 3.4
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(s, 0.28, s * 0.75),
-      new THREE.MeshPhysicalMaterial({
+      new THREE.MeshStandardMaterial({
         color: i % 3 === 0 ? 0xc45c3e : 0xd8cfc0,
         transparent: true,
         opacity: 0.58,
@@ -232,7 +275,7 @@ function buildHeroCenterpiece() {
     const s = 0.3 + Math.random() * 0.7
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(s, s, s),
-      new THREE.MeshPhysicalMaterial({
+      new THREE.MeshStandardMaterial({
         color: Math.random() > 0.6 ? 0xc45c3e : 0xb8c8d4,
         transparent: true,
         opacity: 0.5,
@@ -254,7 +297,7 @@ function buildHeroCenterpiece() {
   // 顶部光核
   const core = new THREE.Mesh(
     new THREE.IcosahedronGeometry(1.35, 1),
-    new THREE.MeshPhysicalMaterial({
+    new THREE.MeshStandardMaterial({
       color: 0xc45c3e,
       transparent: true,
       opacity: 0.65,
@@ -471,9 +514,7 @@ function releaseFocus() {
 
 function playIntro() {
   // 雕塑入场：从星尘放大成形
-  constellation.updates.forEach(() => {})
   cityNodes.forEach((node, id) => {
-    const s = node.group.scale.clone()
     node.group.scale.setScalar(0.01)
     gsap.to(node.group.scale, {
       x: 0.42,
@@ -483,17 +524,6 @@ function playIntro() {
       delay: 0.15 + (id % 12) * 0.06,
       ease: 'power3.out',
     })
-    if (node.beacon) {
-      node.beacon.scale.setScalar(0.01)
-      gsap.to(node.beacon.scale, {
-        x: 1,
-        y: 1,
-        z: 1,
-        duration: 1.2,
-        delay: 0.3 + (id % 12) * 0.05,
-        ease: 'power2.out',
-      })
-    }
   })
   if (heroSculpture) {
     heroSculpture.scale.setScalar(0.2)
@@ -574,13 +604,13 @@ function tick() {
     heroSculpture.visible = heroFade > 0.02
   }
 
-  // 信标闪烁
-  cityNodes.forEach((node, id) => {
-    const pulse = 1 + Math.sin(t * 1.4 + node.index * 0.55) * 0.12
-    if (node.beacon) {
-      node.beacon.scale.setScalar(id === focusId ? 1.8 : pulse)
-    }
-  })
+  // 信标呼吸（Points 整体轻脉动）
+  if (beaconPoints) {
+    const pulse = 1 + Math.sin(t * 1.2) * 0.08
+    beaconPoints.material.size = 1.1 * pulse
+    haloPoints.material.size = 3.2 * pulse
+    haloPoints.material.opacity = 0.1 + Math.sin(t * 0.8) * 0.03
+  }
 
   // 灯光/雾随主题微调
   if (scroll.section?.startsWith('theme-')) {

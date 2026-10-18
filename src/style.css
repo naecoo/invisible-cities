@@ -63,7 +63,8 @@ body {
   left: 0;
   z-index: 10000;
   pointer-events: none;
-  mix-blend-mode: multiply;
+  will-change: transform;
+  transform: translate3d(-100px, -100px, 0);
 }
 
 .cursor-dot {
@@ -83,15 +84,14 @@ body {
   margin: -14px 0 0 -14px;
   border-radius: 50%;
   border: 1px solid rgba(26, 24, 20, 0.35);
-  transition: width 0.35s var(--ease), height 0.35s var(--ease),
-    margin 0.35s var(--ease), border-color 0.35s var(--ease),
+  transform: scale(1);
+  transition: transform 0.35s var(--ease), border-color 0.35s var(--ease),
     background 0.35s var(--ease);
+  will-change: transform;
 }
 
 body.is-hovering .cursor-ring {
-  width: 52px;
-  height: 52px;
-  margin: -26px 0 0 -26px;
+  transform: scale(1.85);
   border-color: var(--vermilion);
   background: rgba(196, 92, 62, 0.06);
 }
@@ -593,8 +593,6 @@ body.is-hovering .cursor-dot {
 
 .frame-card {
   background: rgba(245, 241, 232, 0.72);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(26, 24, 20, 0.08);
   padding: clamp(28px, 4vw, 44px);
   position: relative;
@@ -683,8 +681,6 @@ body.is-hovering .cursor-dot {
 .theme-copy {
   position: relative;
   background: rgba(245, 241, 232, 0.78);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(26, 24, 20, 0.07);
   padding: clamp(28px, 3.5vw, 44px);
   box-shadow: 0 24px 60px -40px rgba(26, 24, 20, 0.25);
@@ -919,8 +915,6 @@ body.is-hovering .cursor-dot {
   position: relative;
   z-index: 1;
   background: rgba(245, 241, 232, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   padding: 28px 32px;
   border: 1px solid rgba(26, 24, 20, 0.07);
 }
@@ -951,8 +945,6 @@ body.is-hovering .cursor-dot {
   text-align: left;
   font-family: inherit;
   overflow: hidden;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 }
 
 .atlas-cell::before {
@@ -1161,8 +1153,6 @@ body.is-hovering .cursor-dot {
   position: absolute;
   inset: 0;
   background: rgba(26, 24, 20, 0.28);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
 }
 
 .city-overlay-panel {

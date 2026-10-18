@@ -16,15 +16,16 @@ function mulberry32(a) {
 }
 
 function paperMaterial(color, opacity = 0.62, roughness = 0.86) {
-  return new THREE.MeshPhysicalMaterial({
+  // 不透明纸感：跳过透明排序，1000+ 物体才能稳
+  // opacity > 0.72 的构件才开透明（数量少）
+  const useTransparent = opacity < 0.72
+  return new THREE.MeshStandardMaterial({
     color: new THREE.Color(color),
-    transparent: true,
-    opacity: opacity * 0.92,
+    transparent: useTransparent,
+    opacity: useTransparent ? opacity * 0.92 : 1,
     roughness,
-    metalness: 0.03,
-    transmission: 0.1,
-    thickness: 0.5,
-    side: THREE.DoubleSide,
+    metalness: 0.02,
+    side: useTransparent ? THREE.DoubleSide : THREE.FrontSide,
     depthWrite: true,
     flatShading: true,
   })
@@ -46,9 +47,23 @@ function inkEdges(mesh, opacity = 0.28, color = 0x2a2420) {
   return line
 }
 
+let edgeBudget = Infinity // 由 main.js 设置；0 = 不描边
+
+export function setEdgeBudget(n) {
+  edgeBudget = n
+}
+
 function addWithEdges(group, mesh, edgeOpacity = 0.28) {
   group.add(mesh)
-  group.add(inkEdges(mesh, edgeOpacity))
+  if (edgeBudget <= 0) return
+  mesh.geometry.computeBoundingSphere?.()
+  const r = mesh.geometry.boundingSphere?.radius ?? 1
+  const maxScale = Math.max(mesh.scale.x, mesh.scale.y, mesh.scale.z, 1)
+  // 仅对较大的构件描边，且受预算约束
+  if (r * maxScale >= 0.7 && edgeBudget > 0) {
+    edgeBudget--
+    group.add(inkEdges(mesh, edgeOpacity))
+  }
 }
 
 // ── 主题雕塑生成器 ───────────────────────────
@@ -371,8 +386,8 @@ function buildSky(rng, palette) {
 
 function buildContinuous(rng, palette) {
   const g = new THREE.Group()
-  // 无限重复街区网格
-  const grid = 5
+  // 无限重复街区网格（3×3，控制 draw call）
+  const grid = 3
   for (let x = -grid; x <= grid; x++) {
     for (let z = -grid; z <= grid; z++) {
       if (Math.abs(x) + Math.abs(z) > grid + 1) continue

@@ -10,7 +10,7 @@ export function createWorld(canvas) {
     alpha: true,
     powerPreference: 'high-performance',
   })
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
   renderer.setSize(window.innerWidth, window.innerHeight)
   renderer.setClearColor(0x000000, 0)
   renderer.outputColorSpace = THREE.SRGBColorSpace
@@ -150,7 +150,7 @@ export function createWorld(canvas) {
     camera.aspect = w / h
     camera.updateProjectionMatrix()
     renderer.setSize(w, h)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
   }
   window.addEventListener('resize', onResize)
 
