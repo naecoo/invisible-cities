@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>看不见的城市 · 光之图集</title>
+    <meta name="description" content="伊塔洛·卡尔维诺《看不见的城市》——五十五座城的光之图集。" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="cursor" class="cursor" aria-hidden="true">
+      <div class="cursor-dot"></div>
+      <div class="cursor-ring"></div>
+    </div>
+
+    <div id="loader" class="loader">
+      <div class="loader-inner">
+        <div class="loader-mark">五十五</div>
+        <div class="loader-line"><span></span></div>
+        <div class="loader-text">正在显影看不见的城</div>
+      </div>
+    </div>
+
+    <canvas id="gl" class="gl-canvas"></canvas>
+
+    <div class="grain" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <div class="topbar-brand">
+        <span class="topbar-seal">影</span>
+        <span class="topbar-title">看不见的城市</span>
+      </div>
+      <nav class="topbar-nav" id="theme-nav"></nav>
+      <div class="topbar-meta">
+        <span class="topbar-count" id="city-count">55</span>
+        <span class="topbar-label">座城</span>
+      </div>
+    </header>
+
+    <div class="progress-rail" aria-hidden="true">
+      <div class="progress-fill" id="progress-fill"></div>
+      <div class="progress-label" id="progress-label">序</div>
+    </div>
+
+    <main id="scroll-root">
+      <!-- ─── HERO ─────────────────────────── -->
+      <section class="section hero" data-section="hero">
+        <div class="hero-frame">
+          <div class="hero-eyebrow">Italo Calvino · 1972</div>
+          <h1 class="hero-title">
+            <span class="hero-line">看不见的</span>
+            <span class="hero-line hero-line-accent">城市</span>
+          </h1>
+          <p class="hero-sub">五十五座不存在却完美的城，在光里显影。</p>
+          <div class="hero-meta">
+            <div class="hero-meta-item">
+              <span class="hero-meta-k">框架</span>
+              <span class="hero-meta-v">马可·波罗 × 忽必烈</span>
+            </div>
+            <div class="hero-meta-item">
+              <span class="hero-meta-k">结构</span>
+              <span class="hero-meta-v">十一类 · 五十五城</span>
+            </div>
+            <div class="hero-meta-item">
+              <span class="hero-meta-k">主题</span>
+              <span class="hero-meta-v">记忆 · 欲望 · 轻盈 · 死亡</span>
+            </div>
+          </div>
+          <div class="hero-scroll">
+            <span class="hero-scroll-line"></span>
+            <span class="hero-scroll-text">向下漫游</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── FRAME / KHAN & POLO ──────────── -->
+      <section class="section frame" data-section="frame">
+        <div class="frame-grid">
+          <div class="frame-card frame-card-khan">
+            <div class="frame-role">大汗</div>
+            <p class="frame-quote">「帝国的地图已经铺满宫殿的地板。可我要的不是疆域——是你眼里的那些城。」</p>
+          </div>
+          <div class="frame-card frame-card-polo">
+            <div class="frame-role">马可·波罗</div>
+            <p class="frame-quote">「陛下，每一次我说起一座城，其实都在说威尼斯。而每一次说威尼斯，又在说所有城。」</p>
+          </div>
+        </div>
+        <div class="frame-note">
+          <div class="frame-note-line"></div>
+          <p>卡尔维诺把这本书做成了一枚多面体：结论写在每一条棱上。你可以沿任一路径穿过它。</p>
+        </div>
+      </section>
+
+      <!-- ─── THEME SECTIONS (injected) ─────── -->
+      <div id="theme-sections"></div>
+
+      <!-- ─── ATLAS ────────────────────────── -->
+      <section class="section atlas" data-section="atlas">
+        <div class="atlas-head">
+          <div class="section-eyebrow">Atlas</div>
+          <h2 class="section-title">五十五城 · 光之图集</h2>
+          <p class="section-lead">点击任一光点，凝视那座城。金色细线会牵出它的主题姐妹。</p>
+        </div>
+        <div class="atlas-grid" id="atlas-grid"></div>
+      </section>
+
+      <!-- ─── EPILOGUE ─────────────────────── -->
+      <section class="section epilogue" data-section="epilogue">
+        <div class="epi-inner">
+          <div class="epi-seal">终</div>
+          <h2 class="epi-title">城市就像梦</h2>
+          <p class="epi-text">
+            凡是可以想象的，皆可存在。而真正看不见的，是那座尚未被说出的城——
+            也许是威尼斯，也许是你的记忆，也许只是你明早醒来时，窗光落下的姿势。
+          </p>
+          <div class="epi-foot">
+            <div class="epi-foot-item">
+              <span>原著</span>
+              <strong>伊塔洛·卡尔维诺《看不见的城市》</strong>
+            </div>
+            <div class="epi-foot-item">
+              <span>视觉化</span>
+              <strong>Three.js · 光之图集</strong>
+            </div>
+            <div class="epi-foot-item">
+              <span>交互</span>
+              <strong>滚动旅程 · 程序化城市雕塑</strong>
+            </div>
+          </div>
+          <button class="epi-back" id="back-top" type="button">回到御前</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- ─── CITY OVERLAY ───────────────────── -->
+    <aside class="city-overlay" id="city-overlay" aria-hidden="true">
+      <div class="city-overlay-backdrop" id="overlay-backdrop"></div>
+      <div class="city-overlay-panel">
+        <button class="city-overlay-close" id="overlay-close" type="button" aria-label="关闭">
+          <span></span><span></span>
+        </button>
+        <div class="city-overlay-eyebrow" id="overlay-theme">城市与记忆</div>
+        <h3 class="city-overlay-title" id="overlay-title">迪奥米拉</h3>
+        <div class="city-overlay-it" id="overlay-it">Diomira</div>
+        <div class="city-overlay-rule"></div>
+        <p class="city-overlay-motto" id="overlay-motto"></p>
+        <p class="city-overlay-note" id="overlay-note"></p>
+        <div class="city-overlay-meta">
+          <div class="city-overlay-meta-item">
+            <span>主题</span>
+            <strong id="overlay-theme-tag">记忆</strong>
+          </div>
+          <div class="city-overlay-meta-item">
+            <span>章次</span>
+            <strong id="overlay-chapter">第 1 章</strong>
+          </div>
+          <div class="city-overlay-meta-item">
+            <span>序列</span>
+            <strong id="overlay-n">01</strong>
+          </div>
+        </div>
+        <div class="city-overlay-nav">
+          <button type="button" id="overlay-prev">← 上一城</button>
+          <button type="button" id="overlay-next">下一城 →</button>
+        </div>
+      </div>
+    </aside>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
