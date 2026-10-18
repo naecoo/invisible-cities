@@ -3,16 +3,10 @@ import gsap from 'gsap'
 import { THEMES, CITIES, CITY_BY_ID, THEME_BY_ID, citiesOfTheme } from './data/cities'
 import { createWorld } from './scene/world'
 import { createCitySculpture, setEdgeBudget } from './scene/cityGeometry'
-import {
-  buildThemeSections,
-  buildAtlas,
-  buildNav,
-  createScrollTracker,
-  observeReveals,
-} from './ui/narrative'
 import { createMapUI } from './ui/mapUI'
 import { createCityModel } from './scene/cityModels'
 import { tickWater } from './scene/cityEnv'
+import { ambient } from './audio/ambient'
 import { ROUTES, routeById, cityIndexInRoute, type Route } from './data/routes'
 
 /* ═══════════════════════════════════════════
@@ -491,12 +485,6 @@ function mustEl<T extends HTMLElement>(id: string): T {
   return node as T
 }
 
-const themeRoot = mustEl('theme-sections')
-const atlasGrid = mustEl('atlas-grid')
-const themeNav = mustEl('theme-nav')
-const progressFill = mustEl('progress-fill')
-const progressLabel = mustEl('progress-label')
-
 // ── 舞台模型（前景唯一城市） ──
 const stageRoot = new THREE.Group()
 stageRoot.visible = false
@@ -573,6 +561,7 @@ function enterCity(cityId: string): void {
   if (!city) return
 
   mountStageModel(cityId)
+  ambient.enter(CITY_BY_ID[cityId]?.theme ?? 'memory')
   // 飞向城市（宏观→微观）
   const target = cityCamTarget(cityId)
   flyCamera(target, 1.35)
@@ -612,6 +601,7 @@ function enterCity(cityId: string): void {
 }
 
 function exitCity(): void {
+  ambient.toMap()
   activeCityId = null
   disableOrbit()
   unmountStageModel()
@@ -667,6 +657,44 @@ function buildMapLabels(): void {
 
 buildMapLabels()
 document.body.classList.add('map-mode')
+document.body.classList.add('at-hero')
+
+// 滚过 hero 后开放标签点击
+const heroEl = document.getElementById('map-hero')
+const onScrollHero = () => {
+  if (!heroEl) return
+  const past = window.scrollY > heroEl.offsetHeight * 0.45
+  document.body.classList.toggle('at-hero', !past)
+}
+window.addEventListener('scroll', onScrollHero, { passive: true })
+onScrollHero()
+
+mustEl('enter-map').addEventListener('click', () => {
+  document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })
+  document.body.classList.remove('at-hero')
+})
+
+// 环境音开关
+const soundBtn = mustEl('sound-toggle')
+soundBtn.addEventListener('click', () => {
+  if (ambient.isEnabled) {
+    ambient.disable()
+    soundBtn.classList.remove('is-on')
+  } else {
+    ambient.enable()
+    ambient.toMap()
+    soundBtn.classList.add('is-on')
+  }
+})
+// 交互后尝试激活（浏览器自动播放策略）
+const unlock = () => {
+  if (!ambient.isEnabled) {
+    // 静默解锁 AudioContext
+    ambient.enable()
+    ambient.disable()
+  }
+}
+window.addEventListener('pointerdown', unlock, { once: true })
 
 // 标签点击
 document.getElementById('map-labels')?.addEventListener('click', (e) => {
@@ -697,46 +725,10 @@ canvas.addEventListener('pointerdown', (e) => {
   }
 })
 
-function onCityClick(cityId: string): void {
-  enterCity(cityId)
-}
-
-function onThemeJump(themeId: string): void {
-  const sec = document.querySelector(`[data-section="theme-${themeId}"]`)
-  if (sec) {
-    window.scrollTo({
-      top: (sec as HTMLElement).offsetTop - 40,
-      behavior: 'smooth',
-    })
-  }
-}
-
-buildThemeSections(themeRoot, onCityClick)
-buildAtlas(atlasGrid, onCityClick)
-buildNav(themeNav, onThemeJump)
-
-// 进度 / 章节
-createScrollTracker({
-  onProgress(p) {
-    scroll.p = p
-    progressFill.style.height = `${(p * 100).toFixed(2)}%`
-  },
-  onSection(current, label) {
-    scroll.section = current
-    scroll.label = label
-    progressLabel.textContent = label
-    // 导航高亮
-    themeNav.querySelectorAll('button').forEach((btn) => {
-      btn.classList.toggle('is-active', current === `theme-${btn.dataset.theme}`)
-    })
-  },
-})
-
-observeReveals()
-
-// 回到顶部
-mustEl('back-top').addEventListener('click', () => {
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+// 首页按钮
+mustEl('back-map').addEventListener('click', () => {
+  document.getElementById('map-hero')?.scrollIntoView({ behavior: 'smooth' })
+  document.body.classList.add('at-hero')
 })
 
 /* ═══════════════════════════════════════════

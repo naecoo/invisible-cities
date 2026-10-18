@@ -903,3 +903,92 @@ export function addReflectionDisc(g: THREE.Group, r: number, x: number, z: numbe
   d.position.set(x, 0.03, z)
   g.add(d)
 }
+
+
+// ── 更多城市意象件 ───────────────────────
+
+export function addBanner(g: THREE.Group, x: number, y: number, z: number, color: number, ry = 0): void {
+  cyl(g, 0.035, 0.035, 1.8, PALETTE.wood, x, y + 0.9, z, 5)
+  box(g, 0.55, 1.05, 0.03, color, x + 0.02, y + 1.1, z, ry, {
+    transparent: true,
+    opacity: 0.82,
+    side: THREE.DoubleSide,
+  })
+}
+
+export function addMarketStall(g: THREE.Group, x: number, z: number, ry: number, color: number): void {
+  const s = new THREE.Group()
+  box(s, 1.15, 0.75, 0.85, PALETTE.wood, 0, 0.38, 0)
+  box(s, 1.35, 0.1, 1.05, color, 0, 0.82, 0)
+  // 货品
+  for (let i = 0; i < 4; i++) {
+    sphere(s, 0.12, [PALETTE.vermilion, PALETTE.gold, PALETTE.leaf, PALETTE.glass][i], -0.35 + i * 0.22, 0.95, 0.12)
+  }
+  // 遮阳棚
+  box(s, 1.4, 0.05, 1.1, color, 0, 1.55, 0)
+  cyl(s, 0.035, 0.035, 1.55, PALETTE.wood, -0.55, 0.78, -0.4, 5)
+  cyl(s, 0.035, 0.035, 1.55, PALETTE.wood, 0.55, 0.78, -0.4, 5)
+  s.position.set(x, 0, z)
+  s.rotation.y = ry
+  g.add(s)
+}
+
+export function addBoat(g: THREE.Group, x: number, z: number, ry = 0, color = PALETTE.wood): void {
+  const b = new THREE.Group()
+  box(b, 1.15, 0.22, 0.42, color, 0, 0.14, 0)
+  box(b, 0.95, 0.12, 0.32, PALETTE.ink, 0, 0.26, 0)
+  // 船桨
+  cyl(b, 0.025, 0.025, 0.9, PALETTE.wood, 0.25, 0.35, 0.35, 5).rotation.z = 0.7
+  b.position.set(x, 0, z)
+  b.rotation.y = ry
+  g.add(b)
+}
+
+export function addWell(g: THREE.Group, x: number, z: number): void {
+  cyl(g, 0.42, 0.48, 0.7, PALETTE.stone, x, 0.35, z, 14)
+  cyl(g, 0.32, 0.32, 0.75, PALETTE.ink, x, 0.32, z, 14)
+  sphere(g, 0.28, PALETTE.waterDeep, x, 0.45, z, { transparent: true, opacity: 0.7 })
+  // 辘轳
+  box(g, 0.08, 1.1, 0.08, PALETTE.wood, x - 0.35, 0.85, z)
+  box(g, 0.08, 1.1, 0.08, PALETTE.wood, x + 0.35, 0.85, z)
+  box(g, 0.85, 0.08, 0.08, PALETTE.wood, x, 1.35, z)
+}
+
+export function addStoneTablet(g: THREE.Group, x: number, y: number, z: number, ry = 0, h = 1.8): void {
+  box(g, 0.85, h, 0.22, PALETTE.stone, x, y + h / 2, z, ry)
+  // 刻痕
+  for (let i = 0; i < 4; i++) {
+    box(g, 0.55, 0.07, 0.03, PALETTE.ink, x, y + 0.35 + i * 0.35, z + 0.13, ry)
+  }
+  box(g, 1.05, 0.14, 0.32, PALETTE.stone, x, y + 0.07, z, ry)
+}
+
+export function addIncense(g: THREE.Group, x: number, y: number, z: number): void {
+  cyl(g, 0.18, 0.22, 0.22, PALETTE.rust, x, y + 0.11, z, 10)
+  for (let i = 0; i < 3; i++) {
+    cyl(g, 0.018, 0.018, 0.75, PALETTE.wood, x + (i - 1) * 0.08, y + 0.55, z, 5)
+    // 烟
+    sphere(g, 0.1, PALETTE.marble, x + (i - 1) * 0.12, y + 1.05, z, {
+      transparent: true,
+      opacity: 0.22,
+    })
+  }
+}
+
+export function addConstellationRing(g: THREE.Group, r: number, y: number, color: number): void {
+  torus(g, r, 0.06, color, 0, y, 0, Math.PI / 2, {
+    transparent: true,
+    opacity: 0.55,
+    emissive: color,
+    emissiveIntensity: 0.25,
+  })
+}
+
+export function addRuinBlock(g: THREE.Group, x: number, z: number, rng: Rng): void {
+  const w = 0.6 + rng() * 1.1
+  const h = 0.4 + rng() * 1.2
+  box(g, w, h, 0.45 + rng() * 0.4, PALETTE.earth, x, h / 2, z, rng() * Math.PI, {
+    roughness: 0.95,
+    flatShading: true,
+  })
+}

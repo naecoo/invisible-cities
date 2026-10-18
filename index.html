@@ -22,6 +22,12 @@
     <!-- 地图上的城市标签（投影定位） -->
     <div class="map-labels" id="map-labels" aria-hidden="false"></div>
 
+    <!-- 音效开关 -->
+    <button class="sound-toggle" id="sound-toggle" type="button" aria-label="切换环境音">
+      <span class="sound-toggle-icon">♪</span>
+      <span class="sound-toggle-text">环境音</span>
+    </button>
+
     <!-- 地图模式提示 -->
     <div class="map-hint" id="map-hint">
       <div class="map-hint-seal">图</div>
@@ -39,106 +45,79 @@
         <span class="topbar-seal">影</span>
         <span class="topbar-title">看不见的城市</span>
       </div>
-      <nav class="topbar-nav" id="theme-nav"></nav>
       <div class="topbar-meta">
         <span class="topbar-count" id="city-count">55</span>
         <span class="topbar-label">座城</span>
       </div>
     </header>
 
-    <div class="progress-rail" aria-hidden="true">
-      <div class="progress-fill" id="progress-fill"></div>
-      <div class="progress-label" id="progress-label">序</div>
-    </div>
 
     <main id="scroll-root">
-      <!-- ─── HERO ─────────────────────────── -->
-      <section class="section hero" data-section="hero">
-        <div class="hero-frame">
-          <div class="hero-eyebrow">Italo Calvino · 1972</div>
-          <h1 class="hero-title">
-            <span class="hero-line">看不见的</span>
-            <span class="hero-line hero-line-accent">城市</span>
+      <!-- 地图首页：标题浮层，滚动后收起 -->
+      <section class="map-hero" id="map-hero">
+        <div class="map-hero-inner">
+          <div class="map-hero-eyebrow">Italo Calvino · 1972 · 光之图集</div>
+          <h1 class="map-hero-title">
+            <span>看不见的</span>
+            <em>城市</em>
           </h1>
-          <p class="hero-sub">五十五座不存在却完美的城，在光里显影。</p>
-          <div class="hero-meta">
-            <div class="hero-meta-item">
-              <span class="hero-meta-k">框架</span>
-              <span class="hero-meta-v">马可·波罗 × 忽必烈</span>
-            </div>
-            <div class="hero-meta-item">
-              <span class="hero-meta-k">结构</span>
-              <span class="hero-meta-v">十一类 · 五十五城</span>
-            </div>
-            <div class="hero-meta-item">
-              <span class="hero-meta-k">主题</span>
-              <span class="hero-meta-v">记忆 · 欲望 · 轻盈 · 死亡</span>
-            </div>
-          </div>
-          <div class="hero-scroll">
-            <span class="hero-scroll-line"></span>
-            <span class="hero-scroll-text">向下漫游</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- ─── FRAME / KHAN & POLO ──────────── -->
-      <section class="section frame" data-section="frame">
-        <div class="frame-grid">
-          <div class="frame-card frame-card-khan">
-            <div class="frame-role">大汗</div>
-            <p class="frame-quote">「帝国的地图已经铺满宫殿的地板。可我要的不是疆域——是你眼里的那些城。」</p>
-          </div>
-          <div class="frame-card frame-card-polo">
-            <div class="frame-role">马可·波罗</div>
-            <p class="frame-quote">「陛下，每一次我说起一座城，其实都在说威尼斯。而每一次说威尼斯，又在说所有城。」</p>
-          </div>
-        </div>
-        <div class="frame-note">
-          <div class="frame-note-line"></div>
-          <p>卡尔维诺把这本书做成了一枚多面体：结论写在每一条棱上。你可以沿任一路径穿过它。</p>
-        </div>
-      </section>
-
-      <!-- ─── THEME SECTIONS (injected) ─────── -->
-      <div id="theme-sections"></div>
-
-      <!-- ─── ATLAS ────────────────────────── -->
-      <section class="section atlas" data-section="atlas">
-        <div class="atlas-head">
-          <div class="section-eyebrow">Atlas</div>
-          <h2 class="section-title">五十五城 · 光之图集</h2>
-          <p class="section-lead">点击任一光点，凝视那座城。金色细线会牵出它的主题姐妹。</p>
-        </div>
-        <div class="atlas-grid" id="atlas-grid"></div>
-      </section>
-
-      <!-- ─── EPILOGUE ─────────────────────── -->
-      <section class="section epilogue" data-section="epilogue">
-        <div class="epi-inner">
-          <div class="epi-seal">终</div>
-          <h2 class="epi-title">城市就像梦</h2>
-          <p class="epi-text">
-            凡是可以想象的，皆可存在。而真正看不见的，是那座尚未被说出的城——
-            也许是威尼斯，也许是你的记忆，也许只是你明早醒来时，窗光落下的姿势。
+          <p class="map-hero-sub">
+            五十五座不存在的城，悬浮于地图之上。<br />
+            点击任一城市，从宏观潜入微观。
           </p>
-          <div class="epi-foot">
-            <div class="epi-foot-item">
-              <span>原著</span>
-              <strong>伊塔洛·卡尔维诺《看不见的城市》</strong>
-            </div>
-            <div class="epi-foot-item">
-              <span>视觉化</span>
-              <strong>Three.js · 光之图集</strong>
-            </div>
-            <div class="epi-foot-item">
-              <span>交互</span>
-              <strong>滚动旅程 · 程序化城市雕塑</strong>
-            </div>
+          <div class="map-hero-actions">
+            <button class="map-hero-btn" id="enter-map" type="button">进入光之地图</button>
+            <a class="map-hero-link" href="#about">关于本书</a>
           </div>
-          <button class="epi-back" id="back-top" type="button">回到御前</button>
+          <div class="map-hero-meta">
+            <div><span>城市</span><strong>55</strong></div>
+            <div><span>主题</span><strong>11</strong></div>
+            <div><span>路线</span><strong>4</strong></div>
+          </div>
         </div>
       </section>
+
+      <!-- 关于 / 说明 -->
+      <section class="about" id="about">
+        <div class="about-inner">
+          <div class="about-seal">序</div>
+          <h2>大汗与旅人</h2>
+          <p>
+            马可·波罗向年老的忽必烈描述帝国的城。他讲的不是疆域，
+            而是记忆、欲望、轻盈、死亡——以及语言无法穷尽的东西。
+          </p>
+          <p>
+            卡尔维诺把这本书做成一枚多面体：结论写在每一条棱上。
+            你可以沿任一路径穿过它。
+          </p>
+          <div class="about-grid">
+            <div>
+              <h3>游览路线</h3>
+              <ul>
+                <li>原书之旅 — 九章出场顺序</li>
+                <li>分类之旅 — 十一类主题</li>
+                <li>空间之旅 — 自天穹沉入地下</li>
+                <li>环城之旅 — 绕城一圈</li>
+              </ul>
+            </div>
+            <div>
+              <h3>如何使用</h3>
+              <ul>
+                <li>地图上点击城市标签进入模型</li>
+                <li>拖拽环视，滚轮缩放</li>
+                <li>方向键翻城 / 切换路线</li>
+                <li>Esc 返回地图</li>
+              </ul>
+            </div>
+          </div>
+          <button class="about-back" id="back-map" type="button">回到地图</button>
+        </div>
+      </section>
+
+      <footer class="site-foot">
+        <div>伊塔洛·卡尔维诺《看不见的城市》视觉化</div>
+        <div>Three.js · 程序化城市雕塑 · 环境音</div>
+      </footer>
     </main>
 
     <!-- ─── FULLSCREEN MODEL VIEW ─────────── -->

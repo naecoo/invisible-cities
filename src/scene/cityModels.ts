@@ -37,6 +37,14 @@ import {
   addStarField,
   addStringWeb,
   addReflectionDisc,
+  addBanner,
+  addMarketStall,
+  addBoat,
+  addWell,
+  addStoneTablet,
+  addIncense,
+  addConstellationRing,
+  addRuinBlock,
 } from './cityEnv'
 
 /**
@@ -243,8 +251,10 @@ function dorotea(rng: Rng): THREE.Group {
 
   // 桥
   box(g, 3.2, 0.16, 0.7, C.vermilion, 0, 1.6, 0)
-  addPerson(g, -0.5, 0, Math.PI / 2, C.vermilion)
-  addPerson(g, 0.8, 0, -Math.PI / 2, C.cloth)
+  addPerson(g, -0.5, 0, Math.PI / 2, C.vermilion, 1, { pose: 'gesture' })
+  addPerson(g, 0.8, 0, -Math.PI / 2, C.cloth, 1, { pose: 'walk' })
+  addWell(g, -3, 2)
+  addIncense(g, 3, 0, 1.5)
 
   addCrowd(g, 10, 5, rng)
   return g
@@ -269,10 +279,15 @@ function anastasia(rng: Rng): THREE.Group {
   addTower(g, 1, 5.5, C.vermilion, 0, 0)
   addGlow(g, 0, 5.8, 0, C.gold, 1.1, 10)
 
-  // 小船
+  // 小船 + 集市摊
   for (let i = 0; i < 5; i++) {
-    box(g, 0.9, 0.22, 0.38, C.wood, (rng() - 0.5) * 8, 0.22, (rng() - 0.5) * 8)
-    addPerson(g, (rng() - 0.5) * 8, (rng() - 0.5) * 8, rng() * 6, C.cloth)
+    addBoat(g, (rng() - 0.5) * 8, (rng() - 0.5) * 8, rng() * 3)
+    addPerson(g, (rng() - 0.5) * 8, (rng() - 0.5) * 8, rng() * 6, C.cloth, 1, { accessory: 'basket' })
+  }
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2
+    addMarketStall(g, Math.cos(a) * 3.2, Math.sin(a) * 3.2, a, C.vermilion)
+    addBanner(g, Math.cos(a) * 4.2, 0, Math.sin(a) * 4.2, C.gold, a)
   }
 
   addCrowd(g, 14, 5, rng)
@@ -405,6 +420,10 @@ function tamara(rng: Rng): THREE.Group {
   addTower(g, 1, 5.5, C.marble, 0, -5)
   for (let i = 0; i < 5; i++) {
     box(g, 1.8, 0.8, 0.12, i === 2 ? C.vermilion : C.ink, 0, 1.1 + i * 1, -4.3)
+  }
+  for (let i = 0; i < 8; i++) {
+    addBanner(g, -3.5 + i, 0, 5, i % 2 ? C.vermilion : C.gold, 0)
+    addPerson(g, -3.5 + i, 4.2, 0, C.cloth, 1, { pose: 'look', accessory: 'fan' })
   }
   return g
 }
@@ -994,6 +1013,9 @@ function pirra(rng: Rng): THREE.Group {
     addPerson(g, Math.cos(a) * r + 0.8, Math.sin(a) * r, a, C.cloth)
   }
   sphere(g, 1.2, C.marble, 0, 1.2, 0)
+  addStoneTablet(g, 0, 0, 2.2, 0, 2.2)
+  addIncense(g, -1.5, 0, 1.8)
+  addIncense(g, 1.5, 0, 1.8)
   return g
 }
 
@@ -1121,6 +1143,10 @@ function argia(rng: Rng): THREE.Group {
     })
   }
   addShadowDisc(g, 5, 0, 0, 0.2)
+  for (let i = 0; i < 8; i++) {
+    addRuinBlock(g, (rng() - 0.5) * 8, (rng() - 0.5) * 8, rng)
+    if (i % 3 === 0) addIncense(g, (rng() - 0.5) * 6, 0, (rng() - 0.5) * 6)
+  }
   return g
 }
 
@@ -1250,7 +1276,7 @@ function perinzia(rng: Rng): THREE.Group {
 }
 
 /** 安德里亚：按星辰排列 */
-function andria(_rng: Rng): THREE.Group {
+function andria(rng: Rng): THREE.Group {
   const g = new THREE.Group()
   addSunLight(g)
   addGround(g, 'stone', 12)
@@ -1271,8 +1297,10 @@ function andria(_rng: Rng): THREE.Group {
     line(g, [stars[i], new THREE.Vector3(0, 0.28, 0)], C.gold, 0.18)
   }
   addTower(g, 0.4, 3.5, C.stone, 0, 0)
-  torus(g, 1.2, 0.09, C.gold, 0, 3.5, 0, 0)
+  addConstellationRing(g, 1.2, 3.5, C.gold)
+  addConstellationRing(g, 2.4, 3.2, C.slate)
   addGlow(g, 0, 3.6, 0, C.gold, 0.8, 8)
+  addStarField(g, 30, rng)
   return g
 }
 
@@ -1423,6 +1451,8 @@ function olinda(_rng: Rng): THREE.Group {
   }
   sphere(g, 0.55, C.gold, 0, 4, 0, { emissive: C.gold, emissiveIntensity: 0.5 })
   addGlow(g, 0, 4, 0, C.gold, 0.9, 8)
+  addWell(g, 2.2, 2.2)
+  addBoat(g, -2.5, -2, 0.8, C.gold)
   return g
 }
 
@@ -1531,6 +1561,9 @@ function berenice(_rng: Rng): THREE.Group {
   sphere(g, 0.3, C.vermilion, 2, 2.35, 0)
   sphere(g, 0.18, C.gold, -0.7, 2.5, 0)
   addGlow(g, 0, 2.8, 0, C.gold, 0.5, 6)
+  addStoneTablet(g, 0, 0, -2.5, 0, 2)
+  addIncense(g, -1, 0, -1.8)
+  addIncense(g, 1, 0, -1.8)
   return g
 }
 
