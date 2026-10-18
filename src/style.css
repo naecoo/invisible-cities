@@ -46,7 +46,7 @@ body {
   color: var(--ink);
   background: var(--paper);
   overflow-x: hidden;
-  cursor: none;
+  cursor: auto;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -56,15 +56,9 @@ body {
   color: var(--ink);
 }
 
-/* ─── Custom cursor ─────────────────────── */
+/* ─── Custom cursor (disabled — 使用系统指针) ─── */
 .cursor {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 10000;
-  pointer-events: none;
-  will-change: transform;
-  transform: translate3d(-100px, -100px, 0);
+  display: none !important;
 }
 
 .cursor-dot {
@@ -269,7 +263,7 @@ body.is-hovering .cursor-dot {
   letter-spacing: 0.08em;
   color: var(--ink-soft);
   padding: 6px 10px;
-  cursor: none;
+  cursor: auto;
   position: relative;
   transition: color 0.3s;
 }
@@ -757,7 +751,7 @@ body.is-hovering .cursor-dot {
   align-items: center;
   padding: 13px 4px;
   border-bottom: 1px solid rgba(26, 24, 20, 0.08);
-  cursor: none;
+  cursor: auto;
   transition: background 0.3s, padding-left 0.35s var(--ease);
   background: transparent;
   width: 100%;
@@ -939,7 +933,7 @@ body.is-hovering .cursor-dot {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  cursor: none;
+  cursor: auto;
   transition: transform 0.45s var(--ease), border-color 0.35s,
     background 0.35s, box-shadow 0.45s var(--ease);
   text-align: left;
@@ -1124,7 +1118,7 @@ body.is-hovering .cursor-dot {
   font-size: 13px;
   letter-spacing: 0.22em;
   padding: 14px 36px;
-  cursor: none;
+  cursor: auto;
   transition: background 0.35s, color 0.35s, border-color 0.35s;
 }
 
@@ -1219,7 +1213,7 @@ body.stage-open {
   font-size: 13px;
   letter-spacing: 0.12em;
   padding: 10px 16px;
-  cursor: none;
+  cursor: auto;
   transition: border-color 0.3s, background 0.3s;
 }
 
@@ -1342,7 +1336,7 @@ body.stage-open {
   font-size: 11px;
   letter-spacing: 0.08em;
   padding: 7px 12px;
-  cursor: none;
+  cursor: auto;
   transition: border-color 0.25s, color 0.25s, background 0.25s;
 }
 
@@ -1375,7 +1369,7 @@ body.stage-open {
   font-size: 12px;
   letter-spacing: 0.1em;
   padding: 10px 16px;
-  cursor: none;
+  cursor: auto;
   transition: border-color 0.3s, background 0.3s, color 0.3s;
   white-space: nowrap;
 }
@@ -1485,7 +1479,7 @@ a:focus-visible {
   background: rgba(245, 241, 232, 0.82);
   padding: 5px 10px 5px 7px;
   border-radius: 999px;
-  cursor: none;
+  cursor: auto;
   box-shadow: 0 4px 16px -8px rgba(26, 24, 20, 0.35);
   transition: opacity 0.3s, transform 0.2s;
   white-space: nowrap;

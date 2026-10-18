@@ -23,7 +23,6 @@ const world = createWorld(canvas)
 const { scene, camera } = world
 
 // 光标 — 只写 transform，零布局
-const cursor = mustEl('cursor')
 const cursorState = { x: 0, y: 0, tx: 0, ty: 0, dirty: false }
 const mouse = { x: 0, y: 0 }
 const scroll = { p: 0, section: 'hero', label: '序', smooth: 0 }
@@ -376,6 +375,111 @@ function flyCamera(to: CamTarget, duration = 1.4): void {
   })
 }
 
+/* ── 模型拖拽环视 ── */
+const orbit = {
+  enabled: false,
+  dragging: false,
+  lastX: 0,
+  lastY: 0,
+  theta: 0,
+  phi: 0.95,
+  radius: 14,
+  target: new THREE.Vector3(),
+  velX: 0,
+  velY: 0,
+}
+
+function orbitApply(): void {
+  const { theta, phi, radius, target } = orbit
+  camSmooth.pos.set(
+    target.x + radius * Math.sin(phi) * Math.sin(theta),
+    target.y + radius * Math.cos(phi),
+    target.z + radius * Math.sin(phi) * Math.cos(theta)
+  )
+  camSmooth.look.copy(target)
+}
+
+function enableOrbit(center: THREE.Vector3, radius = 14): void {
+  orbit.enabled = true
+  orbit.target.copy(center)
+  orbit.radius = radius
+  // 根据当前相机位置反推角度，避免跳变
+  const off = camSmooth.pos.clone().sub(center)
+  orbit.radius = Math.max(10, off.length())
+  orbit.theta = Math.atan2(off.x, off.z)
+  orbit.phi = Math.acos(THREE.MathUtils.clamp(off.y / orbit.radius, -1, 1))
+}
+
+function disableOrbit(): void {
+  orbit.enabled = false
+  orbit.dragging = false
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (!orbit.enabled) return
+  gsap.killTweensOf(camSmooth.pos)
+  gsap.killTweensOf(camSmooth.look)
+  gsap.killTweensOf(camSmooth)
+  orbit.dragging = true
+  orbit.lastX = e.clientX
+  orbit.lastY = e.clientY
+  orbit.velX = 0
+  orbit.velY = 0
+  canvas.setPointerCapture(e.pointerId)
+})
+
+canvas.addEventListener('pointermove', (e) => {
+  if (!orbit.enabled || !orbit.dragging) return
+  const dx = e.clientX - orbit.lastX
+  const dy = e.clientY - orbit.lastY
+  orbit.lastX = e.clientX
+  orbit.lastY = e.clientY
+  orbit.theta -= dx * 0.006
+  orbit.phi = THREE.MathUtils.clamp(orbit.phi + dy * 0.0035, 0.55, 1.25)
+  orbit.velX = dx * 0.005
+  orbit.velY = dy * 0.005
+  orbitApply()
+})
+
+function endDrag(e?: PointerEvent): void {
+  if (!orbit.dragging) return
+  orbit.dragging = false
+  if (e) {
+    try {
+      canvas.releasePointerCapture(e.pointerId)
+    } catch {
+      /* ignore */
+    }
+  }
+}
+canvas.addEventListener('pointerup', endDrag)
+canvas.addEventListener('pointercancel', endDrag)
+canvas.addEventListener('pointerleave', endDrag)
+
+canvas.addEventListener(
+  'wheel',
+  (e) => {
+    if (!orbit.enabled) return
+    e.preventDefault()
+    orbit.radius = THREE.MathUtils.clamp(orbit.radius + e.deltaY * 0.012, 8, 28)
+    orbitApply()
+  },
+  { passive: false }
+)
+
+function orbitTick(): void {
+  if (!orbit.enabled || orbit.dragging) return
+  // 惯性
+  if (Math.abs(orbit.velX) > 0.0002 || Math.abs(orbit.velY) > 0.0002) {
+    orbit.theta -= orbit.velX
+    orbit.phi = THREE.MathUtils.clamp(orbit.phi + orbit.velY, 0.55, 1.25)
+    orbit.velX *= 0.92
+    orbit.velY *= 0.92
+    orbitApply()
+  }
+}
+
+
 /* ═══════════════════════════════════════════
    DOM 构建
    ═══════════════════════════════════════════ */
@@ -471,6 +575,12 @@ function enterCity(cityId: string): void {
   // 飞向城市（宏观→微观）
   const target = cityCamTarget(cityId)
   flyCamera(target, 1.35)
+  // 飞行结束后开放拖拽环视
+  gsap.delayedCall(1.35, () => {
+    if (activeCityId === cityId) {
+      enableOrbit(target.look.clone(), target.pos.distanceTo(target.look))
+    }
+  })
 
   // 压暗/隐藏其它城
   cityNodes.forEach((node, id) => {
@@ -502,6 +612,7 @@ function enterCity(cityId: string): void {
 
 function exitCity(): void {
   activeCityId = null
+  disableOrbit()
   unmountStageModel()
   mapUI.closeCity()
   flyCamera(MAP_CAM, 1.2)
@@ -720,20 +831,21 @@ function tick(): void {
   requestAnimationFrame(tick)
   const t = clock.getElapsedTime()
 
-  // 光标插值
-  cursorState.x += (cursorState.tx - cursorState.x) * 0.22
-  cursorState.y += (cursorState.ty - cursorState.y) * 0.22
-  cursor.style.transform = `translate3d(${cursorState.x}px, ${cursorState.y}px, 0)`
-
   // 滚动平滑
   scroll.smooth += (scroll.p - scroll.smooth) * 0.07
 
-  // 相机（gsap 已写 camSmooth，这里轻微视差）
-  const parallaxX = mouse.x * 1.1
-  const parallaxY = mouse.y * -0.8
-  camera.position.copy(camSmooth.pos)
-  camera.position.x += parallaxX
-  camera.position.y += parallaxY
+  orbitTick()
+
+  // 相机
+  if (orbit.enabled) {
+    camera.position.copy(camSmooth.pos)
+  } else {
+    const parallaxX = mouse.x * 1.1
+    const parallaxY = mouse.y * -0.8
+    camera.position.copy(camSmooth.pos)
+    camera.position.x += parallaxX
+    camera.position.y += parallaxY
+  }
   camera.lookAt(camSmooth.look)
   if (Math.abs(camera.fov - camSmooth.fov) > 0.01) {
     camera.fov = camSmooth.fov
@@ -775,10 +887,9 @@ function tick(): void {
     mapUI.updateLabelPositions(labelPositions)
   }
 
-  // 舞台模型缓慢旋转
-  if (stageModel && stageRoot.visible) {
-    stageModel.rotation.y += 0.0032
-    stageRoot.position.y = Math.sin(t * 0.35) * 0.18
+  // 舞台模型：无自动旋转，由拖拽环视控制
+  if (stageModel && stageRoot.visible && orbit.enabled) {
+    // 平滑惯性已在 orbit.update 中处理
   }
 
   // 雕塑呼吸
