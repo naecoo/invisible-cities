@@ -557,12 +557,12 @@ function cityCamTarget(cityId: string): CamTarget {
   const node = cityNodes.get(cityId)
   const focus = node ? node.worldPos.clone() : new THREE.Vector3(0, 10, 0)
   // createCityModel 统一归一化到约 8 单位，固定取景距离即可稳妥
-  const R = 22
-  const pos = focus.clone().add(new THREE.Vector3(R * 0.42, R * 0.32, R * 0.92))
+  const R = 11
+  const pos = focus.clone().add(new THREE.Vector3(R * 0.55, R * 0.42, R * 0.95))
   return {
     pos,
-    look: focus.clone().add(new THREE.Vector3(0, 0, 0)),
-    fov: 40,
+    look: focus.clone().add(new THREE.Vector3(0, 0.2, 0)),
+    fov: 42,
   }
 }
 

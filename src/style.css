@@ -1171,7 +1171,8 @@ body.stage-open {
 .model-view.is-open {
   opacity: 1;
   visibility: visible;
-  pointer-events: auto;
+  /* 根节点不吃事件，让 canvas 收到拖拽 */
+  pointer-events: none;
 }
 
 /* 纯净纸白底 — 轻微暖渐变，无颗粒无暗角 */
@@ -1275,6 +1276,7 @@ body.stage-open {
   right: 0;
   bottom: 0;
   z-index: 20;
+  pointer-events: none;
   padding: clamp(18px, 2.5vh, 32px) clamp(22px, 3.5vw, 48px) clamp(22px, 3vh, 40px);
   display: flex;
   flex-direction: column;
