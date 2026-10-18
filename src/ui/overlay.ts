@@ -20,14 +20,11 @@ export function createStage(opts: StageCallbacks): {
   readonly route: Route
 } {
   const root = mustEl('city-overlay')
-  const backdrop = mustEl('overlay-backdrop')
   const closeBtn = mustEl('overlay-close')
   const themeEl = mustEl('overlay-theme')
   const titleEl = mustEl('overlay-title')
   const itEl = mustEl('overlay-it')
   const mottoEl = mustEl('overlay-motto')
-  const noteEl = mustEl('overlay-note')
-  const themeTag = mustEl('overlay-theme-tag')
   const chapterEl = mustEl('overlay-chapter')
   const nEl = mustEl('overlay-n')
   const prevBtn = mustEl('overlay-prev')
@@ -37,7 +34,6 @@ export function createStage(opts: StageCallbacks): {
   let currentId: string | null = null
   let route: Route = ROUTES[0]
 
-  // 路线选择
   ROUTES.forEach((r) => {
     const btn = document.createElement('button')
     btn.type = 'button'
@@ -45,13 +41,7 @@ export function createStage(opts: StageCallbacks): {
     btn.dataset.routeId = r.id
     btn.addEventListener('click', () => {
       setRoute(r.id)
-      if (currentId) {
-        const idx = cityIndexInRoute(route, currentId)
-        if (idx >= 0) {
-          // 保持当前城，仅切换路线
-          renderPills()
-        }
-      }
+      renderPills()
     })
     routePills.appendChild(btn)
   })
@@ -80,9 +70,6 @@ export function createStage(opts: StageCallbacks): {
     titleEl.textContent = city.zh
     itEl.textContent = city.it
     mottoEl.textContent = `「${city.motto}」`
-    noteEl.textContent = city.note
-    themeTag.textContent = theme.motif
-    themeTag.style.color = theme.color
     chapterEl.textContent = `第 ${city.chapter} 章`
     const idx = cityIndexInRoute(route, cityId)
     const total = route.cityIds.length
@@ -113,7 +100,6 @@ export function createStage(opts: StageCallbacks): {
   }
 
   closeBtn.addEventListener('click', close)
-  backdrop.addEventListener('click', close)
   prevBtn.addEventListener('click', () => step(-1))
   nextBtn.addEventListener('click', () => step(1))
 
@@ -123,14 +109,11 @@ export function createStage(opts: StageCallbacks): {
     if (e.key === 'ArrowLeft') step(-1)
     if (e.key === 'ArrowRight') step(1)
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-      // 路线循环
       const i = ROUTES.findIndex((r) => r.id === route.id)
       const ni = (i + (e.key === 'ArrowDown' ? 1 : ROUTES.length - 1)) % ROUTES.length
       setRoute(ROUTES[ni].id)
-      if (currentId) {
-        const first = route.cityIds[0]
-        if (first) open(first)
-      }
+      const first = route.cityIds[0]
+      if (first) open(first)
       e.preventDefault()
     }
   })
@@ -147,7 +130,6 @@ export function createStage(opts: StageCallbacks): {
   }
 }
 
-// 兼容旧命名
 export const createOverlay = createStage
 
 export function allCities(): typeof CITIES {

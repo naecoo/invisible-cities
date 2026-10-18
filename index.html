@@ -24,6 +24,18 @@
 
     <canvas id="gl" class="gl-canvas"></canvas>
 
+    <!-- 地图上的城市标签（投影定位） -->
+    <div class="map-labels" id="map-labels" aria-hidden="false"></div>
+
+    <!-- 地图模式提示 -->
+    <div class="map-hint" id="map-hint">
+      <div class="map-hint-seal">图</div>
+      <div class="map-hint-text">
+        <strong>光之地图</strong>
+        <span>点击任意城市，从宏观潜入微观</span>
+      </div>
+    </div>
+
     <div class="grain" aria-hidden="true"></div>
     <div class="vignette" aria-hidden="true"></div>
 
@@ -134,45 +146,38 @@
       </section>
     </main>
 
-    <!-- ─── CITY STAGE ─────────────────────── -->
-    <aside class="city-stage" id="city-overlay" aria-hidden="true">
-      <div class="city-stage-backdrop" id="overlay-backdrop"></div>
-      <div class="city-stage-panel">
-        <button class="city-overlay-close" id="overlay-close" type="button" aria-label="关闭">
-          <span></span><span></span>
+    <!-- ─── FULLSCREEN MODEL VIEW ─────────── -->
+    <div class="model-view" id="city-overlay" aria-hidden="true">
+      <div class="model-view-bg"></div>
+
+      <header class="model-view-top">
+        <button class="model-view-back" id="overlay-close" type="button">
+          <span class="model-view-back-icon">←</span>
+          <span>返回图集</span>
         </button>
+        <div class="model-view-id">
+          <div class="model-view-theme" id="overlay-theme">城市与记忆</div>
+          <h2 class="model-view-title" id="overlay-title">迪奥米拉</h2>
+          <div class="model-view-it" id="overlay-it">Diomira</div>
+        </div>
+        <div class="model-view-chapter" id="overlay-chapter">第 1 章</div>
+      </header>
 
-        <div class="city-stage-route">
-          <span class="city-stage-route-label">游览路线</span>
-          <div class="city-stage-route-pills" id="route-pills"></div>
-        </div>
-
-        <div class="city-overlay-eyebrow" id="overlay-theme">城市与记忆</div>
-        <h3 class="city-overlay-title" id="overlay-title">迪奥米拉</h3>
-        <div class="city-overlay-it" id="overlay-it">Diomira</div>
-        <div class="city-overlay-rule"></div>
-        <p class="city-overlay-motto" id="overlay-motto"></p>
-        <p class="city-overlay-note" id="overlay-note"></p>
-        <div class="city-overlay-meta">
-          <div class="city-overlay-meta-item">
-            <span>主题</span>
-            <strong id="overlay-theme-tag">记忆</strong>
+      <footer class="model-view-bottom">
+        <div class="model-view-motto" id="overlay-motto"></div>
+        <div class="model-view-controls">
+          <div class="model-view-routes">
+            <span class="model-view-routes-label">路线</span>
+            <div class="city-stage-route-pills" id="route-pills"></div>
           </div>
-          <div class="city-overlay-meta-item">
-            <span>章次</span>
-            <strong id="overlay-chapter">第 1 章</strong>
-          </div>
-          <div class="city-overlay-meta-item">
-            <span>路线进度</span>
-            <strong id="overlay-n">01 / 55</strong>
+          <div class="model-view-nav">
+            <button type="button" id="overlay-prev">← 上一城</button>
+            <div class="model-view-progress" id="overlay-n">01 / 55</div>
+            <button type="button" id="overlay-next">下一城 →</button>
           </div>
         </div>
-        <div class="city-overlay-nav">
-          <button type="button" id="overlay-prev">← 上一城</button>
-          <button type="button" id="overlay-next">下一城 →</button>
-        </div>
-      </div>
-    </aside>
+      </footer>
+    </div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -10,9 +10,9 @@ import {
   createScrollTracker,
   observeReveals,
 } from './ui/narrative'
-import { createStage } from './ui/overlay'
+import { createMapUI } from './ui/mapUI'
 import { createCityModel } from './scene/cityModels'
-import type { Route } from './data/routes'
+import { ROUTES, routeById, cityIndexInRoute, type Route } from './data/routes'
 
 /* ═══════════════════════════════════════════
    启动
@@ -332,60 +332,48 @@ function buildHeroCenterpiece() {
 const heroSculpture = buildHeroCenterpiece()
 
 /* ═══════════════════════════════════════════
-   相机路径 — 滚动驱动
+   相机 — 地图宏观 / 城市微观
    ═══════════════════════════════════════════ */
 
-/**
- * 相机关键帧（按滚动进度 0-1）
- * 位置 / 注视点 / FOV
- */
-const camKeys = [
-  // 0 Hero — 右侧主雕塑 + 背景星系
-  { p: 0.0, pos: [10, 14, 48], look: [18, 12, 0], fov: 40 },
-  // Frame — 回到全景
-  { p: 0.08, pos: [6, 16, 50], look: [0, 14, 0], fov: 40 },
-  // 主题旅程 — 绕螺旋内移
-  { p: 0.16, pos: [22, 22, 36], look: [10, 18, 2], fov: 38 },
-  { p: 0.28, pos: [32, 24, 16], look: [16, 20, 6], fov: 36 },
-  { p: 0.40, pos: [24, 26, -18], look: [8, 21, -6], fov: 36 },
-  { p: 0.52, pos: [-4, 28, -34], look: [-4, 22, -4], fov: 36 },
-  { p: 0.64, pos: [-30, 26, -12], look: [-12, 21, 2], fov: 36 },
-  { p: 0.76, pos: [-32, 24, 18], look: [-10, 18, 4], fov: 38 },
-  // Atlas — 俯瞰
-  { p: 0.88, pos: [0, 54, 34], look: [0, 12, 0], fov: 44 },
-  // Epilogue — 拉远
-  { p: 1.0, pos: [0, 22, 64], look: [0, 16, 0], fov: 42 },
-]
-
-function sampleCamPath(p: number): { pos: THREE.Vector3; look: THREE.Vector3; fov: number } {
-  const t = Math.max(0, Math.min(1, p))
-  let i = 0
-  while (i < camKeys.length - 2 && camKeys[i + 1].p < t) i++
-  const a = camKeys[i]
-  const b = camKeys[i + 1]
-  const span = b.p - a.p || 1
-  const local = (t - a.p) / span
-  // smoothstep
-  const s = local * local * (3 - 2 * local)
-
-  const pos = new THREE.Vector3(
-    a.pos[0] + (b.pos[0] - a.pos[0]) * s,
-    a.pos[1] + (b.pos[1] - a.pos[1]) * s,
-    a.pos[2] + (b.pos[2] - a.pos[2]) * s
-  )
-  const look = new THREE.Vector3(
-    a.look[0] + (b.look[0] - a.look[0]) * s,
-    a.look[1] + (b.look[1] - a.look[1]) * s,
-    a.look[2] + (b.look[2] - a.look[2]) * s
-  )
-  const fov = a.fov + (b.fov - a.fov) * s
-  return { pos, look, fov }
+/** 地图总览相机 */
+const MAP_CAM = {
+  pos: new THREE.Vector3(0, 52, 58),
+  look: new THREE.Vector3(0, 10, 0),
+  fov: 42,
 }
 
 const camSmooth = {
-  pos: new THREE.Vector3(10, 14, 48),
-  look: new THREE.Vector3(18, 12, 0),
-  fov: 40,
+  pos: MAP_CAM.pos.clone(),
+  look: MAP_CAM.look.clone(),
+  fov: MAP_CAM.fov,
+}
+
+type CamTarget = { pos: THREE.Vector3; look: THREE.Vector3; fov: number }
+
+function flyCamera(to: CamTarget, duration = 1.4): void {
+  // 由 tick 里 lerp；也可用 gsap 直接推 camSmooth
+  gsap.to(camSmooth.pos, {
+    x: to.pos.x,
+    y: to.pos.y,
+    z: to.pos.z,
+    duration,
+    ease: 'power2.inOut',
+    overwrite: true,
+  })
+  gsap.to(camSmooth.look, {
+    x: to.look.x,
+    y: to.look.y,
+    z: to.look.z,
+    duration,
+    ease: 'power2.inOut',
+    overwrite: true,
+  })
+  gsap.to(camSmooth, {
+    fov: to.fov,
+    duration,
+    ease: 'power2.inOut',
+    overwrite: true,
+  })
 }
 
 /* ═══════════════════════════════════════════
@@ -410,6 +398,8 @@ stageRoot.visible = false
 scene.add(stageRoot)
 let stageModel: THREE.Group | null = null
 
+
+
 function mountStageModel(cityId: string): void {
   if (stageModel) {
     stageRoot.remove(stageModel)
@@ -417,14 +407,25 @@ function mountStageModel(cityId: string): void {
   }
   const city = CITY_BY_ID[cityId]
   if (!city) return
-  const model = createCityModel(city.id, city.seed)
-  // 舞台放在相机前方，便于聚焦
-  model.position.set(0, 0, 0)
-  stageRoot.add(model)
-  stageModel = model
+  const inner = createCityModel(city.id, city.seed)
+  // 外层容器负责放置到地图坐标，内层保留居中偏移
+  const wrapper = new THREE.Group()
+  const node = cityNodes.get(cityId)
+  const at = node ? node.worldPos.clone() : new THREE.Vector3(0, 10, 0)
+  wrapper.position.copy(at)
+  wrapper.add(inner)
+  stageRoot.add(wrapper)
+  stageModel = wrapper
   stageRoot.visible = true
-  stageRoot.scale.setScalar(0.01)
-  gsap.to(stageRoot.scale, { x: 1, y: 1, z: 1, duration: 0.9, ease: 'power3.out' })
+  // 隐藏星座小城 / 信标 / Hero，避免干扰
+  if (heroSculpture) heroSculpture.visible = false
+  if (beaconPoints) beaconPoints.visible = false
+  if (haloPoints) haloPoints.visible = false
+  cityNodes.forEach((n) => {
+    n.group.visible = false
+  })
+  wrapper.scale.setScalar(0.01)
+  gsap.to(wrapper.scale, { x: 1, y: 1, z: 1, duration: 0.9, ease: 'power3.out' })
 }
 
 function unmountStageModel(): void {
@@ -433,24 +434,159 @@ function unmountStageModel(): void {
     stageRoot.remove(stageModel)
     stageModel = null
   }
+  if (heroSculpture) heroSculpture.visible = true
+  if (beaconPoints) beaconPoints.visible = true
+  if (haloPoints) haloPoints.visible = true
+  cityNodes.forEach((n) => {
+    n.group.visible = true
+    gsap.to(n.group.scale, { x: 0.42, y: 0.42, z: 0.42, duration: 0.5 })
+  })
 }
 
-const overlay = createStage({
-  onSelect(cityId) {
-    mountStageModel(cityId)
-    focusCity(cityId)
-  },
-  onClose() {
-    unmountStageModel()
-    releaseFocus()
-  },
-  onRouteChange(_route: Route) {
-    // 路线切换时仅更新进度文案，模型由 open() 处理
+// ── 地图 UI ──
+const mapUI = createMapUI()
+
+let activeRoute: Route = ROUTES[0]
+let activeCityId: string | null = null
+
+function cityCamTarget(cityId: string): CamTarget {
+  const node = cityNodes.get(cityId)
+  const focus = node ? node.worldPos.clone() : new THREE.Vector3(0, 10, 0)
+  // createCityModel 统一归一化到约 8 单位，固定取景距离即可稳妥
+  const R = 22
+  const pos = focus.clone().add(new THREE.Vector3(R * 0.42, R * 0.32, R * 0.92))
+  return {
+    pos,
+    look: focus.clone().add(new THREE.Vector3(0, 0, 0)),
+    fov: 40,
+  }
+}
+
+function enterCity(cityId: string): void {
+  activeCityId = cityId
+  const city = CITY_BY_ID[cityId]
+  if (!city) return
+
+  mountStageModel(cityId)
+  // 飞向城市（宏观→微观）
+  const target = cityCamTarget(cityId)
+  flyCamera(target, 1.35)
+
+  // 压暗/隐藏其它城
+  cityNodes.forEach((node, id) => {
+    if (id !== cityId) {
+      node.group.visible = false
+    } else {
+      node.group.visible = false // 小城也藏，只看舞台大模型
+    }
+    gsap.to(node.group.scale, { x: 0.22, y: 0.22, z: 0.22, duration: 0.7, ease: 'power2.out' })
+  })
+  if (heroSculpture) heroSculpture.visible = false
+
+  const idx = cityIndexInRoute(activeRoute, cityId)
+  const theme = THEME_BY_ID[city.theme]
+  mapUI.openCity(
+    { ...city, theme: theme.name as never },
+    activeRoute,
+    idx >= 0 ? idx : 0,
+    activeRoute.cityIds.length
+  )
+  mapUI.setRouteActive(activeRoute.id)
+  // 主题色
+  const themeEl = document.getElementById('overlay-theme')
+  if (themeEl) {
+    themeEl.textContent = theme.name
+    themeEl.style.color = theme.color
+  }
+}
+
+function exitCity(): void {
+  activeCityId = null
+  unmountStageModel()
+  mapUI.closeCity()
+  flyCamera(MAP_CAM, 1.2)
+  cityNodes.forEach((node) => {
+    gsap.to(node.group.scale, { x: 0.42, y: 0.42, z: 0.42, duration: 0.9, ease: 'power2.out' })
+  })
+}
+
+function stepCity(dir: number): void {
+  const ids = activeRoute.cityIds
+  if (!activeCityId) {
+    if (ids[0]) enterCity(ids[0])
+    return
+  }
+  const idx = ids.indexOf(activeCityId)
+  const next = ids[(idx + dir + ids.length) % ids.length]
+  if (next) enterCity(next)
+}
+
+mapUI.bind({
+  onClose: exitCity,
+  onPrev: () => stepCity(-1),
+  onNext: () => stepCity(1),
+  onRoute: (routeId: string) => {
+    activeRoute = routeById(routeId)
+    mapUI.setRouteActive(activeRoute.id)
+    // 切路线后跳到该路线第一城
+    const first = activeRoute.cityIds[0]
+    if (first) enterCity(first)
   },
 })
 
+// 地图标签：投影定位
+const labelPositions: Array<{ id: string; x: number; y: number; visible: boolean }> = []
+
+function buildMapLabels(): void {
+  const labels = CITIES.map((c) => {
+    const theme = THEME_BY_ID[c.theme]
+    return {
+      id: c.id,
+      zh: c.zh,
+      themeColor: theme.color,
+      x: 0,
+      y: 0,
+    }
+  })
+  mapUI.setLabels(labels)
+  mapUI.showMapLabels(true)
+  CITIES.forEach((c) => labelPositions.push({ id: c.id, x: 0, y: 0, visible: true }))
+}
+
+buildMapLabels()
+document.body.classList.add('map-mode')
+
+// 标签点击
+document.getElementById('map-labels')?.addEventListener('click', (e) => {
+  const t = e.target as HTMLElement
+  const btn = t.closest('[data-city-id]') as HTMLElement | null
+  if (btn?.dataset.cityId) enterCity(btn.dataset.cityId)
+})
+
+// 3D 拾取：点城市雕塑
+const raycaster = new THREE.Raycaster()
+const pointerNdc = new THREE.Vector2()
+canvas.addEventListener('pointerdown', (e) => {
+  if (mapUI.isOpen) return
+  pointerNdc.x = (e.clientX / window.innerWidth) * 2 - 1
+  pointerNdc.y = -(e.clientY / window.innerHeight) * 2 + 1
+  raycaster.setFromCamera(pointerNdc, camera)
+  const hits = raycaster.intersectObjects(scene.children, true)
+  for (const hit of hits) {
+    let o: THREE.Object3D | null = hit.object
+    while (o) {
+      const cityId = o.userData?.cityId as string | undefined
+      if (cityId) {
+        enterCity(cityId)
+        return
+      }
+      o = o.parent
+    }
+  }
+})
+
 function onCityClick(cityId: string): void {
-  overlay.open(cityId)
+  enterCity(cityId)
 }
 
 function onThemeJump(themeId: string): void {
@@ -533,28 +669,7 @@ function focusCity(cityId: string): void {
   })
 }
 
-function releaseFocus(): void {
-  focusCam.active = false
-  cityNodes.forEach((node) => {
-    gsap.to(node.group.scale, {
-      x: 0.42,
-      y: 0.42,
-      z: 0.42,
-      duration: 0.85,
-      ease: 'power2.out',
-      overwrite: true,
-    })
-    node.group.traverse((obj) => {
-      const o = obj as THREE.Mesh
-      if ((obj as THREE.LineSegments).isLineSegments && o.material) {
-        ;(o.material as THREE.Material).opacity = 0.28
-      }
-      if (o.isMesh && o.material && (o.material as THREE.MeshStandardMaterial).emissive) {
-        ;(o.material as THREE.MeshStandardMaterial).emissiveIntensity = 0
-      }
-    })
-  })
-}
+
 
 /* ═══════════════════════════════════════════
    Hero 入场动画
@@ -613,21 +728,9 @@ function tick(): void {
   // 滚动平滑
   scroll.smooth += (scroll.p - scroll.smooth) * 0.07
 
-  // 相机
-  if (focusCam.active) {
-    camSmooth.pos.lerp(focusCam.pos, 0.055)
-    camSmooth.look.lerp(focusCam.look, 0.055)
-    camSmooth.fov += (focusCam.fov - camSmooth.fov) * 0.055
-  } else {
-    const target = sampleCamPath(scroll.smooth)
-    camSmooth.pos.lerp(target.pos, 0.06)
-    camSmooth.look.lerp(target.look, 0.06)
-    camSmooth.fov += (target.fov - camSmooth.fov) * 0.06
-  }
-
-  // 鼠标视差
-  const parallaxX = mouse.x * 1.6
-  const parallaxY = mouse.y * -1.1
+  // 相机（gsap 已写 camSmooth，这里轻微视差）
+  const parallaxX = mouse.x * 1.1
+  const parallaxY = mouse.y * -0.8
   camera.position.copy(camSmooth.pos)
   camera.position.x += parallaxX
   camera.position.y += parallaxY
@@ -635,6 +738,41 @@ function tick(): void {
   if (Math.abs(camera.fov - camSmooth.fov) > 0.01) {
     camera.fov = camSmooth.fov
     camera.updateProjectionMatrix()
+  }
+
+  // 地图标签投影
+  if (!mapUI.isOpen) {
+    const w = window.innerWidth
+    const h = window.innerHeight
+    for (const lp of labelPositions) {
+      const node = cityNodes.get(lp.id)
+      if (!node) continue
+      const v = node.worldPos.clone()
+      v.y += 3.2
+      v.project(camera)
+      const x = (v.x * 0.5 + 0.5) * w
+      const y = (-v.y * 0.5 + 0.5) * h
+      lp.x = x
+      lp.y = y
+      lp.visible = v.z < 1 && x > -40 && x < w + 40 && y > -20 && y < h + 20
+    }
+    // 标签避让：屏幕坐标排序后，重叠则隐藏
+    const used: Array<{ x: number; y: number }> = []
+    const MIN_DX = 72
+    const MIN_DY = 28
+    for (const lp of labelPositions) {
+      if (!lp.visible) continue
+      let clash = false
+      for (const u of used) {
+        if (Math.abs(lp.x - u.x) < MIN_DX && Math.abs(lp.y - u.y) < MIN_DY) {
+          clash = true
+          break
+        }
+      }
+      if (!clash) used.push({ x: lp.x, y: lp.y })
+      lp.visible = lp.visible && !clash
+    }
+    mapUI.updateLabelPositions(labelPositions)
   }
 
   // 舞台模型缓慢旋转
@@ -645,21 +783,9 @@ function tick(): void {
 
   // 雕塑呼吸
   constellation.updates.forEach((u) => u(t))
-  if (heroSculpture) {
+  if (heroSculpture && heroSculpture.visible) {
     heroSculpture.rotation.y += 0.0008
     heroSculpture.position.y = 10 + Math.sin(t * 0.28) * 0.35
-    // Hero 之后淡出主雕塑
-    const heroFade = 1 - Math.min(1, scroll.smooth * 10)
-    heroSculpture.traverse((obj) => {
-      const mesh = obj as THREE.Mesh
-      const mat = mesh.material as THREE.MeshStandardMaterial | undefined
-      if (mat && typeof mat.opacity === 'number') {
-        const base = (obj.userData.baseOpacity as number | undefined) ?? mat.opacity
-        obj.userData.baseOpacity = base
-        mat.opacity = base * Math.max(0, heroFade)
-      }
-    })
-    heroSculpture.visible = heroFade > 0.02
   }
 
   // 信标呼吸（Points 整体轻脉动）
