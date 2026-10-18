@@ -36,6 +36,7 @@ export const PALETTE = {
   skin: 0xd4a88a,
   cloth: 0x6a5a7a,
   leaf: 0x6a8a5a,
+  straw: 0xd4c09a,
 }
 
 export function mat(color: number, opts: Partial<THREE.MeshStandardMaterialParameters> = {}) {
@@ -178,6 +179,55 @@ export function addPaving(
 
 // ── 水体 ─────────────────────────────────
 
+/** 流动水体着色器 — 波纹 + 微光 */
+export function makeWaterMaterial(color = PALETTE.water, opacity = 0.72): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    uniforms: {
+      uTime: { value: 0 },
+      uColor: { value: new THREE.Color(color) },
+      uOpacity: { value: opacity },
+    },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      varying vec3 vWorld;
+      void main() {
+        vUv = uv;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorld = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uTime;
+      uniform vec3 uColor;
+      uniform float uOpacity;
+      varying vec2 vUv;
+      varying vec3 vWorld;
+      void main() {
+        // 双层波纹
+        float w1 = sin(vWorld.x * 2.2 + uTime * 1.1) * 0.5 + 0.5;
+        float w2 = sin(vWorld.z * 2.8 - uTime * 0.9 + vWorld.x * 0.6) * 0.5 + 0.5;
+        float w3 = sin((vWorld.x + vWorld.z) * 1.4 + uTime * 0.55) * 0.5 + 0.5;
+        float wave = w1 * 0.4 + w2 * 0.35 + w3 * 0.25;
+        vec3 col = uColor * (0.78 + wave * 0.38);
+        // 高光
+        float spec = pow(wave, 6.0) * 0.35;
+        col += vec3(spec);
+        float a = uOpacity * (0.82 + wave * 0.18);
+        gl_FragColor = vec4(col, a);
+      }
+    `,
+  })
+}
+
+// 需要在渲染循环中更新时间的水面
+const waterMats: THREE.ShaderMaterial[] = []
+export function tickWater(t: number): void {
+  for (const m of waterMats) m.uniforms.uTime.value = t
+}
+
 export function addRiver(
   g: THREE.Group,
   width: number,
@@ -186,15 +236,8 @@ export function addRiver(
   z = 0,
   rotY = 0
 ): void {
-  const w = new THREE.Mesh(
-    new THREE.PlaneGeometry(width, length),
-    mat(PALETTE.water, {
-      transparent: true,
-      opacity: 0.72,
-      roughness: 0.25,
-      metalness: 0.15,
-    })
-  )
+  const w = new THREE.Mesh(new THREE.PlaneGeometry(width, length, 12, 12), makeWaterMaterial())
+  waterMats.push(w.material as THREE.ShaderMaterial)
   w.rotation.x = -Math.PI / 2
   w.rotation.z = rotY
   w.position.set(x, 0.06, z)
@@ -209,21 +252,27 @@ export function addRiver(
   bank.rotation.z = rotY
   bank.position.set(x, 0.02, z)
   g.add(bank)
+  // 岸边卵石
+  for (let i = 0; i < 6; i++) {
+    const t = (i / 5 - 0.5) * length * 0.85
+    sphere(g, 0.12 + (i % 3) * 0.04, PALETTE.slate, x + width * 0.55, 0.08, z + t)
+    sphere(g, 0.1, PALETTE.slate, x - width * 0.55, 0.08, z + t * 0.9)
+  }
 }
 
 export function addLake(g: THREE.Group, r: number, x = 0, z = 0): void {
-  const w = new THREE.Mesh(
-    new THREE.CircleGeometry(r, 40),
-    mat(PALETTE.waterDeep, {
-      transparent: true,
-      opacity: 0.68,
-      roughness: 0.22,
-      metalness: 0.12,
-    })
-  )
+  const w = new THREE.Mesh(new THREE.CircleGeometry(r, 48), makeWaterMaterial(PALETTE.waterDeep, 0.7))
+  waterMats.push(w.material as THREE.ShaderMaterial)
   w.rotation.x = -Math.PI / 2
   w.position.set(x, 0.07, z)
   g.add(w)
+  // 波纹环
+  for (let i = 1; i <= 3; i++) {
+    torus(g, r * 0.35 * i, 0.035, PALETTE.glass, x, 0.09, z, Math.PI / 2, {
+      transparent: true,
+      opacity: 0.35 - i * 0.08,
+    })
+  }
 }
 
 export function addCanals(g: THREE.Group, span: number, n: number): void {
@@ -231,6 +280,12 @@ export function addCanals(g: THREE.Group, span: number, n: number): void {
     const t = (i / (n - 1) - 0.5) * span
     addRiver(g, 0.7, span, t, 0)
     addRiver(g, 0.7, span, 0, t, Math.PI / 2)
+  }
+  // 桥梁
+  for (let i = 0; i < n; i++) {
+    const t = (i / (n - 1) - 0.5) * span
+    box(g, 1.2, 0.12, 0.55, PALETTE.wood, t, 0.22, 0)
+    box(g, 0.55, 0.12, 1.2, PALETTE.wood, 0, 0.22, t)
   }
 }
 
@@ -394,28 +449,129 @@ export function addScaffold(
 
 // ── 人物 ─────────────────────────────────
 
+export type PersonPose = 'stand' | 'walk' | 'sit' | 'bath' | 'carry' | 'gesture' | 'look'
+
+export interface PersonOpts {
+  pose?: PersonPose
+  robe?: number
+  hair?: number
+  skin?: number
+  accessory?: 'none' | 'hat' | 'basket' | 'staff' | 'towel' | 'fan'
+}
+
+/**
+ * 细模人物：发型 / 长袍 / 姿态 / 手持物
+ */
 export function addPerson(
   g: THREE.Group,
   x: number,
   z: number,
   ry = 0,
   color = PALETTE.cloth,
-  scale = 1
+  scale = 1,
+  opts: PersonOpts = {}
 ): THREE.Group {
+  const pose = opts.pose ?? 'stand'
+  const robe = opts.robe ?? color
+  const hair = opts.hair ?? PALETTE.ink
+  const skin = opts.skin ?? PALETTE.skin
+  const acc = opts.accessory ?? 'none'
+
   const p = new THREE.Group()
-  // 腿
-  cyl(p, 0.08, 0.1, 0.55, color, -0.1, 0.28, 0, 6)
-  cyl(p, 0.08, 0.1, 0.55, color, 0.1, 0.28, 0, 6)
-  // 躯干
-  box(p, 0.38, 0.55, 0.22, color, 0, 0.85, 0)
+  const legSwing = pose === 'walk' ? 0.35 : 0
+  const armSwing = pose === 'walk' ? 0.4 : 0
+  const sitDrop = pose === 'sit' ? -0.22 : 0
+
+  // 腿（裤/袍下摆）
+  if (pose === 'bath') {
+    // 浴姿：坐入水中，只见上身
+    box(p, 0.42, 0.35, 0.28, skin, 0, 0.2, 0)
+    cyl(p, 0.14, 0.16, 0.5, robe, 0, 0.55, 0, 8)
+  } else {
+    cyl(p, 0.075, 0.095, 0.52, robe, -0.11, 0.26 + sitDrop, legSwing * 0.2, 7)
+    cyl(p, 0.075, 0.095, 0.52, robe, 0.11, 0.26 + sitDrop, -legSwing * 0.2, 7)
+    // 鞋
+    box(p, 0.11, 0.07, 0.2, PALETTE.ink, -0.11, 0.04 + sitDrop, 0.04)
+    box(p, 0.11, 0.07, 0.2, PALETTE.ink, 0.11, 0.04 + sitDrop, -0.02)
+  }
+
+  // 长袍 / 上身
+  const torsoY = 0.82 + sitDrop
+  if (pose === 'bath') {
+    sphere(p, 0.22, skin, 0, 0.72, 0)
+    box(p, 0.36, 0.28, 0.2, skin, 0, 0.95, 0)
+  } else {
+    // 袍身（略宽下摆）
+    cyl(p, 0.19, 0.24, 0.62, robe, 0, torsoY, 0, 8)
+    // 束带
+    cyl(p, 0.2, 0.2, 0.06, PALETTE.gold, 0, torsoY + 0.05, 0, 8)
+    // 肩
+    box(p, 0.42, 0.16, 0.22, robe, 0, torsoY + 0.3, 0)
+  }
+
   // 手臂
-  cyl(p, 0.06, 0.06, 0.5, color, -0.26, 0.82, 0, 6)
-  cyl(p, 0.06, 0.06, 0.5, color, 0.26, 0.82, 0, 6)
+  const armY = torsoY + 0.22
+  if (pose === 'gesture') {
+    cyl(p, 0.055, 0.06, 0.48, robe, -0.28, armY + 0.12, 0.18, 7).rotation.x = -0.9
+    cyl(p, 0.055, 0.06, 0.48, robe, 0.28, armY + 0.18, 0.28, 7).rotation.x = -1.3
+  } else if (pose === 'carry') {
+    cyl(p, 0.055, 0.06, 0.5, robe, -0.28, armY, 0.12, 7).rotation.x = -0.5
+    cyl(p, 0.055, 0.06, 0.5, robe, 0.28, armY, 0.12, 7).rotation.x = -0.5
+  } else if (pose === 'bath') {
+    cyl(p, 0.05, 0.055, 0.42, skin, -0.26, 0.95, 0.1, 7).rotation.x = -0.7
+    cyl(p, 0.05, 0.055, 0.42, skin, 0.26, 0.95, 0.1, 7).rotation.x = -0.7
+  } else if (pose === 'look') {
+    cyl(p, 0.055, 0.06, 0.48, robe, -0.28, armY + 0.1, 0.22, 7).rotation.x = -1.1
+    cyl(p, 0.055, 0.06, 0.48, robe, 0.28, armY, -0.05, 7)
+  } else {
+    cyl(p, 0.055, 0.06, 0.5, robe, -0.28, armY, armSwing * 0.3, 7).rotation.x = armSwing
+    cyl(p, 0.055, 0.06, 0.5, robe, 0.28, armY, -armSwing * 0.3, 7).rotation.x = -armSwing
+  }
+  // 手
+  sphere(p, 0.07, skin, -0.32, armY - 0.22, 0.1)
+  sphere(p, 0.07, skin, 0.32, armY - 0.22, 0.1)
+
   // 头
-  sphere(p, 0.16, PALETTE.skin, 0, 1.32, 0)
+  const headY = torsoY + 0.58
+  sphere(p, 0.17, skin, 0, headY, 0)
+  // 发
+  if (pose === 'bath') {
+    // 湿发披下
+    box(p, 0.28, 0.35, 0.12, hair, 0, headY - 0.12, -0.1)
+    sphere(p, 0.16, hair, 0, headY + 0.06, -0.04)
+  } else {
+    sphere(p, 0.175, hair, 0, headY + 0.07, -0.03)
+    // 发髻
+    sphere(p, 0.09, hair, 0, headY + 0.18, -0.08)
+  }
+  // 五官暗示
+  sphere(p, 0.025, PALETTE.ink, -0.06, headY + 0.02, 0.15)
+  sphere(p, 0.025, PALETTE.ink, 0.06, headY + 0.02, 0.15)
+
+  // 配饰
+  if (acc === 'hat') {
+    cyl(p, 0.22, 0.12, 0.12, PALETTE.straw, 0, headY + 0.2, 0, 10)
+  } else if (acc === 'basket') {
+    cyl(p, 0.14, 0.16, 0.18, PALETTE.wood, 0.32, armY - 0.15, 0.18, 10)
+  } else if (acc === 'staff') {
+    cyl(p, 0.025, 0.03, 1.1, PALETTE.wood, -0.32, 0.55, 0.15, 6)
+  } else if (acc === 'towel') {
+    box(p, 0.18, 0.22, 0.05, PALETTE.marble, 0.3, armY - 0.1, 0.2)
+  } else if (acc === 'fan') {
+    box(p, 0.16, 0.22, 0.02, PALETTE.gold, 0.34, armY - 0.05, 0.22)
+  }
+
   p.position.set(x, 0, z)
   p.rotation.y = ry
   p.scale.setScalar(scale)
+  // 阴影
+  const sh = new THREE.Mesh(
+    new THREE.CircleGeometry(0.28, 12),
+    new THREE.MeshBasicMaterial({ color: PALETTE.ink, transparent: true, opacity: 0.1, depthWrite: false })
+  )
+  sh.rotation.x = -Math.PI / 2
+  sh.position.y = 0.015
+  p.add(sh)
   g.add(p)
   return p
 }
@@ -427,17 +583,46 @@ export function addCrowd(
   rng: Rng,
   center = new THREE.Vector3()
 ): void {
+  const poses: PersonPose[] = ['stand', 'walk', 'gesture', 'look', 'carry']
+  const accs: Array<PersonOpts['accessory']> = ['none', 'hat', 'basket', 'staff', 'fan']
+  const colors = [PALETTE.cloth, PALETTE.vermilion, PALETTE.slate, PALETTE.wood, PALETTE.ink, PALETTE.gold]
   for (let i = 0; i < count; i++) {
     const a = rng() * Math.PI * 2
     const r = 0.6 + rng() * radius
-    const colors = [PALETTE.cloth, PALETTE.vermilion, PALETTE.slate, PALETTE.wood, PALETTE.ink]
     addPerson(
       g,
       center.x + Math.cos(a) * r,
       center.z + Math.sin(a) * r,
       rng() * Math.PI * 2,
       colors[i % colors.length],
-      0.85 + rng() * 0.3
+      0.88 + rng() * 0.22,
+      {
+        pose: poses[i % poses.length],
+        hair: rng() > 0.5 ? PALETTE.ink : PALETTE.wood,
+        accessory: accs[i % accs.length],
+      }
+    )
+  }
+}
+
+/** 浴场人群 — 阿尔米拉等 */
+export function addBathers(
+  g: THREE.Group,
+  count: number,
+  radius: number,
+  rng: Rng
+): void {
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * Math.PI * 2 + rng() * 0.4
+    const r = 1.5 + rng() * radius
+    addPerson(
+      g,
+      Math.cos(a) * r,
+      Math.sin(a) * r,
+      a + Math.PI / 2,
+      PALETTE.skin,
+      0.9 + rng() * 0.15,
+      { pose: 'bath', hair: rng() > 0.4 ? PALETTE.wood : PALETTE.ink, accessory: 'towel' }
     )
   }
 }
@@ -492,25 +677,25 @@ export function addWaterfall(
   yBot: number,
   z: number
 ): void {
-  const w = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.45, yTop - yBot),
-    mat(PALETTE.water, {
-      transparent: true,
-      opacity: 0.55,
-      roughness: 0.2,
-      side: THREE.DoubleSide,
-      flatShading: false,
-    })
-  )
+  const matFall = makeWaterMaterial(PALETTE.water, 0.58)
+  matFall.side = THREE.DoubleSide
+  waterMats.push(matFall)
+  const w = new THREE.Mesh(new THREE.PlaneGeometry(0.5, yTop - yBot, 4, 12), matFall)
   w.position.set(x, (yTop + yBot) / 2, z)
   g.add(w)
-  // 水花
-  for (let i = 0; i < 5; i++) {
-    sphere(g, 0.08, PALETTE.glass, x + (Math.random() - 0.5) * 0.3, yBot + 0.1, z + (Math.random() - 0.5) * 0.2, {
+  // 水雾
+  for (let i = 0; i < 8; i++) {
+    sphere(g, 0.07 + Math.random() * 0.06, PALETTE.glass, x + (Math.random() - 0.5) * 0.4, yBot + 0.08, z + (Math.random() - 0.5) * 0.3, {
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.5,
     })
   }
+  // 底部水潭
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(0.55, 20), makeWaterMaterial(PALETTE.water, 0.55))
+  waterMats.push(pool.material as THREE.ShaderMaterial)
+  pool.rotation.x = -Math.PI / 2
+  pool.position.set(x, yBot + 0.04, z)
+  g.add(pool)
 }
 
 // ── 光影 ─────────────────────────────────
@@ -599,4 +784,122 @@ export function addShadowDisc(g: THREE.Group, r: number, x = 0, z = 0, opacity =
   s.rotation.x = -Math.PI / 2
   s.position.set(x, 0.02, z)
   g.add(s)
+}
+
+
+// ── 城市符号细节 ─────────────────────────
+
+export function addCoralColumn(g: THREE.Group, x: number, z: number, h = 3): void {
+  cyl(g, 0.16, 0.2, h, PALETTE.vermilion, x, h / 2, z, 8)
+  cyl(g, 0.28, 0.28, 0.12, PALETTE.gold, x, 0.08, z, 10)
+  cyl(g, 0.28, 0.28, 0.12, PALETTE.gold, x, h - 0.08, z, 10)
+  // 珊瑚饰
+  for (let i = 0; i < 3; i++) {
+    sphere(g, 0.12, PALETTE.vermilion, x + (Math.random() - 0.5) * 0.15, h * (0.3 + i * 0.25), z + 0.12)
+  }
+}
+
+export function addAquariumVilla(g: THREE.Group, x: number, z: number, ry = 0): void {
+  // 玻璃水族馆
+  box(g, 1.6, 1.5, 1.2, PALETTE.glass, x, 0.75, z, ry, {
+    transparent: true,
+    opacity: 0.38,
+    roughness: 0.12,
+    metalness: 0.18,
+    flatShading: false,
+  })
+  // 内部水面
+  box(g, 1.4, 0.5, 1, PALETTE.water, x, 0.4, z, ry, {
+    transparent: true,
+    opacity: 0.45,
+    roughness: 0.2,
+    flatShading: false,
+  })
+  // 舞者剪影
+  addPerson(g, x, z, ry + 0.6, PALETTE.gold, 0.7, { pose: 'gesture' })
+  // 水母灯
+  sphere(g, 0.18, PALETTE.glass, x, 1.35, z, {
+    transparent: true,
+    opacity: 0.6,
+    emissive: PALETTE.glass,
+    emissiveIntensity: 0.35,
+  })
+  addGlow(g, x, 1.35, z, PALETTE.glass, 0.35, 3)
+}
+
+export function addTrashPile(g: THREE.Group, x: number, z: number, rng: Rng): void {
+  for (let i = 0; i < 6; i++) {
+    box(
+      g,
+      0.35 + rng() * 0.5,
+      0.25 + rng() * 0.45,
+      0.35 + rng() * 0.4,
+      [PALETTE.rust, PALETTE.wood, PALETTE.slate, PALETTE.vermilion][i % 4],
+      x + (rng() - 0.5) * 1.2,
+      0.2 + rng() * 0.3,
+      z + (rng() - 0.5) * 1.2,
+      rng() * Math.PI
+    )
+  }
+}
+
+export function addStarField(g: THREE.Group, count: number, rng: Rng): void {
+  const pos = new Float32Array(count * 3)
+  for (let i = 0; i < count; i++) {
+    pos[i * 3] = (rng() - 0.5) * 22
+    pos[i * 3 + 1] = 7 + rng() * 10
+    pos[i * 3 + 2] = (rng() - 0.5) * 22
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  g.add(
+    new THREE.Points(
+      geo,
+      new THREE.PointsMaterial({
+        color: PALETTE.gold,
+        size: 0.12,
+        transparent: true,
+        opacity: 0.85,
+        depthWrite: false,
+        sizeAttenuation: true,
+      })
+    )
+  )
+}
+
+export function addStringWeb(
+  g: THREE.Group,
+  posts: Array<{ x: number; y: number; z: number }>,
+  color: number
+): void {
+  for (let i = 0; i < posts.length; i++) {
+    const a = posts[i]
+    for (let j = i + 1; j < posts.length; j++) {
+      if ((i + j) % 3 !== 0) continue
+      const b = posts[j]
+      line(
+        g,
+        [new THREE.Vector3(a.x, a.y, a.z), new THREE.Vector3(b.x, b.y, b.z)],
+        color,
+        0.32
+      )
+    }
+    // 立柱
+    cyl(g, 0.06, 0.06, a.y, PALETTE.wood, a.x, a.y / 2, a.z, 6)
+  }
+}
+
+export function addReflectionDisc(g: THREE.Group, r: number, x: number, z: number): void {
+  const d = new THREE.Mesh(
+    new THREE.CircleGeometry(r, 32),
+    new THREE.MeshBasicMaterial({
+      color: PALETTE.waterDeep,
+      transparent: true,
+      opacity: 0.22,
+      depthWrite: false,
+    })
+  )
+  d.rotation.x = -Math.PI / 2
+  d.position.set(x, 0.03, z)
+  g.add(d)
 }

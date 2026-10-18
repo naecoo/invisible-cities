@@ -26,10 +26,17 @@ import {
   addPalm,
   addLamp,
   addWaterfall,
+  addBathers,
   addSunLight,
   addGlow,
   addParticles,
   addShadowDisc,
+  addCoralColumn,
+  addAquariumVilla,
+  addTrashPile,
+  addStarField,
+  addStringWeb,
+  addReflectionDisc,
 } from './cityEnv'
 
 /**
@@ -569,14 +576,14 @@ function armilla(rng: Rng): THREE.Group {
     }
   }
 
-  // 浴缸
+  // 浴缸与沐浴者
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2
     const r = 2.5 + rng() * 2
     box(g, 1.3, 0.55, 0.75, C.marble, Math.cos(a) * r, 2.2 + rng() * 1.2, Math.sin(a) * r, a)
-    // 沐浴者
-    addPerson(g, Math.cos(a) * r, Math.sin(a) * r, a, C.skin, 0.85)
+    addPerson(g, Math.cos(a) * r, Math.sin(a) * r, a, C.skin, 0.85, { pose: 'bath', accessory: 'towel' })
   }
+  addBathers(g, 4, 3, rng)
 
   // 面盆
   for (let i = 0; i < 4; i++) {
@@ -724,15 +731,21 @@ function ersilia(rng: Rng): THREE.Group {
     cyl(g, 0.1, 0.1, p.y, C.wood, p.x, p.y / 2, p.z, 6)
     addPerson(g, p.x + 0.5, p.z, rng() * 6, C.cloth)
   }
-  // 关系线
+  // 关系线网
+  const posts = nodes.map((n) => ({ x: n.x, y: n.y, z: n.z }))
+  addStringWeb(g, posts, C.gold)
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
-      if (rng() > 0.45) continue
+      if (rng() > 0.55) continue
       const col = [C.gold, C.ink, C.marble, C.slate][(i + j) % 4]
-      line(g, [nodes[i], nodes[j]], col, 0.4)
+      line(g, [nodes[i], nodes[j]], col, 0.35)
     }
   }
   addShadowDisc(g, 6)
+  // 山坡上的难民
+  for (let i = 0; i < 5; i++) {
+    addPerson(g, -5 + i, 3.5, 0.4, C.cloth, 1, { pose: 'look', accessory: 'basket' })
+  }
   return g
 }
 
@@ -772,6 +785,13 @@ function valdrada(rng: Rng): THREE.Group {
   const g = new THREE.Group()
   addSunLight(g)
   addLake(g, 7)
+  addReflectionDisc(g, 5.5, 0, 0)
+  // 湖岸
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2
+    addTree(g, Math.cos(a) * 6.2, Math.sin(a) * 6.2, 1.8)
+    if (i % 2 === 0) addPerson(g, Math.cos(a) * 5.2, Math.sin(a) * 5.2, a + Math.PI, C.cloth, 1, { pose: 'look' })
+  }
 
   // 上层城市
   for (let i = 0; i < 12; i++) {
@@ -885,12 +905,16 @@ function moriana(rng: Rng): THREE.Group {
   addSunLight(g)
   addGround(g, 'stone', 12)
 
-  // 正面
+  // 正面：雪花石膏门 + 珊瑚柱 + 水族馆
   for (let i = 0; i < 7; i++) {
-    addHouse(g, 1.4, 2 + rng() * 1.8, 0.6, C.gold, -4 + i * 1.35, -1.4)
+    addCoralColumn(g, -4 + i * 1.35, -1.4, 3.2)
+    if (i % 2 === 0) addAquariumVilla(g, -4 + i * 1.35, -2.2)
+    else addHouse(g, 1.4, 2 + rng() * 1.8, 0.6, C.marble, -4 + i * 1.35, -1.4)
     sphere(g, 0.3, C.vermilion, -4 + i * 1.35, 3.2 + rng(), -1.4)
-    addPerson(g, -4 + i * 1.35, -0.5, 0, C.cloth)
+    addPerson(g, -4 + i * 1.35, -0.5, 0, C.cloth, 1, { pose: 'gesture', accessory: 'fan' })
   }
+  addArch(g, 2.2, 3, 0.5, C.marble, -4.5, 0, -0.2)
+  addGlow(g, -4.5, 2.2, -0.2, C.gold, 0.5, 6)
   box(g, 9.5, 0.2, 0.8, C.vermilion, 0, 3.4, -1.4)
   addGlow(g, -2, 3, -1, C.gold, 0.6, 8)
   addGlow(g, 2, 3, -1, C.gold, 0.6, 8)
@@ -902,8 +926,17 @@ function moriana(rng: Rng): THREE.Group {
     box(g, 0.6, 0.5, 0.5, C.rust, -4 + i * 1.35, 0.3, 2.2)
   }
 
-  // 分界
-  box(g, 9.5, 3.5, 0.1, C.ink, 0, 1.75, 0)
+  // 分界（略透）
+  box(g, 9.5, 3.5, 0.1, C.rust, 0, 1.75, 0, 0, {
+    transparent: true,
+    opacity: 0.88,
+    roughness: 0.95,
+  })
+  // 背面更多锈蚀堆
+  for (let i = 0; i < 8; i++) {
+    box(g, 0.5 + rng() * 0.6, 0.35 + rng() * 0.5, 0.45, i % 2 ? C.rust : C.slate, -4 + i * 1.1, 0.25, 2.8, rng())
+    if (i % 3 === 0) addPerson(g, -4 + i * 1.1, 3.4, Math.PI, C.cloth, 1, { pose: 'look' })
+  }
   return g
 }
 
@@ -1184,7 +1217,13 @@ function tecla(rng: Rng): THREE.Group {
   }
   torus(g, 4.2, 0.07, C.slate, 0, 4.8, 0)
   // 星空蓝图
-  addParticles(g, 40, 8, [4, 7], C.gold, 0.07, rng)
+  addStarField(g, 50, rng)
+  addParticles(g, 25, 8, [1, 4], C.sand, 0.06, rng)
+  // 工人
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2
+    addPerson(g, Math.cos(a) * 4, Math.sin(a) * 4, a, C.cloth, 1, { pose: 'carry', accessory: 'staff' })
+  }
   return g
 }
 
@@ -1253,11 +1292,13 @@ function leonia(rng: Rng): THREE.Group {
   }
 
   // 垃圾山边界
-  for (let i = 0; i < 16; i++) {
-    const a = (i / 16) * Math.PI * 2
-    box(g, 0.65 + rng() * 0.5, 0.4 + rng() * 0.6, 0.65, i % 3 === 0 ? C.vermilion : C.rust, Math.cos(a) * 5, 0.35, Math.sin(a) * 5, rng())
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2
+    addTrashPile(g, Math.cos(a) * 5, Math.sin(a) * 5, rng)
+    if (i % 3 === 0) addPerson(g, Math.cos(a) * 4.2, Math.sin(a) * 4.2, a + Math.PI, C.cloth, 1, { pose: 'carry' })
   }
   cyl(g, 1.7, 1.7, 0.3, C.gold, 0, 0.18, 0, 24)
+  addGlow(g, 0, 0.5, 0, C.gold, 0.5, 5)
   return g
 }
 

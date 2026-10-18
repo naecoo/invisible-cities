@@ -29,7 +29,9 @@ export function createWorld(canvas: HTMLCanvasElement): World {
   renderer.setClearColor(0x000000, 0)
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.toneMapping = THREE.ACESFilmicToneMapping
-  renderer.toneMappingExposure = 1.05
+  renderer.toneMappingExposure = 1.08
+  renderer.shadowMap.enabled = true
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
   const scene = new THREE.Scene()
   scene.fog = new THREE.FogExp2(0xf0ebe0, 0.0095)
@@ -47,17 +49,26 @@ export function createWorld(canvas: HTMLCanvasElement): World {
   scene.add(hemi)
 
   // 主暖侧光（模拟窗光）
-  const key = new THREE.DirectionalLight(0xffe8d0, 1.35)
+  const key = new THREE.DirectionalLight(0xffe8d0, 1.45)
   key.position.set(28, 42, 18)
+  key.castShadow = true
+  key.shadow.mapSize.set(2048, 2048)
+  key.shadow.camera.near = 1
+  key.shadow.camera.far = 120
+  key.shadow.camera.left = -30
+  key.shadow.camera.right = 30
+  key.shadow.camera.top = 30
+  key.shadow.camera.bottom = -30
+  key.shadow.bias = -0.0004
   scene.add(key)
 
   // 冷补光 — 给线框一点青灰
-  const fill = new THREE.DirectionalLight(0xb8c8d4, 0.55)
+  const fill = new THREE.DirectionalLight(0xb8c8d4, 0.62)
   fill.position.set(-24, 18, -12)
   scene.add(fill)
 
   // 极弱顶光 — 提亮雕塑顶部
-  const rim = new THREE.DirectionalLight(0xfff0dd, 0.4)
+  const rim = new THREE.DirectionalLight(0xfff0dd, 0.48)
   rim.position.set(0, 60, -30)
   scene.add(rim)
 

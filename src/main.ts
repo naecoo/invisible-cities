@@ -12,6 +12,7 @@ import {
 } from './ui/narrative'
 import { createMapUI } from './ui/mapUI'
 import { createCityModel } from './scene/cityModels'
+import { tickWater } from './scene/cityEnv'
 import { ROUTES, routeById, cityIndexInRoute, type Route } from './data/routes'
 
 /* ═══════════════════════════════════════════
@@ -834,6 +835,9 @@ function tick(): void {
   // 滚动平滑
   scroll.smooth += (scroll.p - scroll.smooth) * 0.07
 
+  tickWater(t)
+  // 城市页曝光略提，地图页略柔
+  world.lightTarget.exposure = mapUI.isOpen ? 1.12 : 1.04
   orbitTick()
 
   // 相机
