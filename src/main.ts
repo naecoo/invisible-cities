@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import gsap from 'gsap'
-import { THEMES, CITIES, THEME_BY_ID, citiesOfTheme } from './data/cities'
+import { THEMES, CITIES, CITY_BY_ID, THEME_BY_ID, citiesOfTheme } from './data/cities'
 import { createWorld } from './scene/world'
 import { createCitySculpture, setEdgeBudget } from './scene/cityGeometry'
 import {
@@ -10,7 +10,9 @@ import {
   createScrollTracker,
   observeReveals,
 } from './ui/narrative'
-import { createOverlay } from './ui/overlay'
+import { createStage } from './ui/overlay'
+import { createCityModel } from './scene/cityModels'
+import type { Route } from './data/routes'
 
 /* ═══════════════════════════════════════════
    启动
@@ -402,12 +404,48 @@ const themeNav = mustEl('theme-nav')
 const progressFill = mustEl('progress-fill')
 const progressLabel = mustEl('progress-label')
 
-const overlay = createOverlay({
+// ── 舞台模型（前景唯一城市） ──
+const stageRoot = new THREE.Group()
+stageRoot.visible = false
+scene.add(stageRoot)
+let stageModel: THREE.Group | null = null
+
+function mountStageModel(cityId: string): void {
+  if (stageModel) {
+    stageRoot.remove(stageModel)
+    stageModel = null
+  }
+  const city = CITY_BY_ID[cityId]
+  if (!city) return
+  const model = createCityModel(city.id, city.seed)
+  // 舞台放在相机前方，便于聚焦
+  model.position.set(0, 0, 0)
+  stageRoot.add(model)
+  stageModel = model
+  stageRoot.visible = true
+  stageRoot.scale.setScalar(0.01)
+  gsap.to(stageRoot.scale, { x: 1, y: 1, z: 1, duration: 0.9, ease: 'power3.out' })
+}
+
+function unmountStageModel(): void {
+  stageRoot.visible = false
+  if (stageModel) {
+    stageRoot.remove(stageModel)
+    stageModel = null
+  }
+}
+
+const overlay = createStage({
   onSelect(cityId) {
+    mountStageModel(cityId)
     focusCity(cityId)
   },
   onClose() {
+    unmountStageModel()
     releaseFocus()
+  },
+  onRouteChange(_route: Route) {
+    // 路线切换时仅更新进度文案，模型由 open() 处理
   },
 })
 
@@ -458,50 +496,40 @@ mustEl('back-top').addEventListener('click', () => {
    ═══════════════════════════════════════════ */
 
 const focusCam = {
-  pos: new THREE.Vector3(),
-  look: new THREE.Vector3(),
+  pos: new THREE.Vector3(11, 8, 13),
+  look: new THREE.Vector3(0, 2.2, 0),
+  fov: 36,
   active: false,
 }
 
 function focusCity(cityId: string): void {
   const node = cityNodes.get(cityId)
-  if (!node) return
   focusCam.active = true
 
-  const offset = new THREE.Vector3(10, 7, 12)
-  focusCam.pos.copy(node.worldPos).add(offset)
-  focusCam.look.copy(node.worldPos)
+  // 舞台模型放在原点，相机绕原点取景
+  focusCam.pos.set(10.5, 8.5, 14)
+  focusCam.look.set(-2.0, 1.8, 0)
+  focusCam.fov = 40
 
-  // 提亮该雕塑
-  node.group.traverse((obj) => {
-    const o = obj as THREE.Mesh
-    if ((obj as THREE.LineSegments).isLineSegments && o.material) {
-      ;(o.material as THREE.Material).opacity = 0.55
-    }
-    if (o.isMesh && o.material && (o.material as THREE.MeshStandardMaterial).emissive) {
-      const m = o.material as THREE.MeshStandardMaterial
-      m.emissive.setHex(0x332211)
-      m.emissiveIntensity = 0.15
-    }
-  })
+  if (node) {
+    // 提亮该雕塑（背景星座）
+    node.group.traverse((obj) => {
+      const o = obj as THREE.Mesh
+      if ((obj as THREE.LineSegments).isLineSegments && o.material) {
+        ;(o.material as THREE.Material).opacity = 0.5
+      }
+    })
+  }
 
-  // 压暗其他
-  cityNodes.forEach((other, id) => {
-    if (id === cityId) return
+  // 压暗背景星座
+  cityNodes.forEach((other) => {
     gsap.to(other.group.scale, {
-      x: 0.42,
-      y: 0.42,
-      z: 0.42,
-      duration: 0.8,
+      x: 0.28,
+      y: 0.28,
+      z: 0.28,
+      duration: 0.7,
       ease: 'power2.out',
     })
-  })
-  gsap.to(node.group.scale, {
-    x: 1.35,
-    y: 1.35,
-    z: 1.35,
-    duration: 0.9,
-    ease: 'power3.out',
   })
 }
 
@@ -589,6 +617,7 @@ function tick(): void {
   if (focusCam.active) {
     camSmooth.pos.lerp(focusCam.pos, 0.055)
     camSmooth.look.lerp(focusCam.look, 0.055)
+    camSmooth.fov += (focusCam.fov - camSmooth.fov) * 0.055
   } else {
     const target = sampleCamPath(scroll.smooth)
     camSmooth.pos.lerp(target.pos, 0.06)
@@ -606,6 +635,12 @@ function tick(): void {
   if (Math.abs(camera.fov - camSmooth.fov) > 0.01) {
     camera.fov = camSmooth.fov
     camera.updateProjectionMatrix()
+  }
+
+  // 舞台模型缓慢旋转
+  if (stageModel && stageRoot.visible) {
+    stageModel.rotation.y += 0.0032
+    stageRoot.position.y = Math.sin(t * 0.35) * 0.18
   }
 
   // 雕塑呼吸

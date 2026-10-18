@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>看不见的城市 · 光之图集</title>
     <meta name="description" content="伊塔洛·卡尔维诺《看不见的城市》——五十五座城的光之图集。" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
@@ -133,13 +134,19 @@
       </section>
     </main>
 
-    <!-- ─── CITY OVERLAY ───────────────────── -->
-    <aside class="city-overlay" id="city-overlay" aria-hidden="true">
-      <div class="city-overlay-backdrop" id="overlay-backdrop"></div>
-      <div class="city-overlay-panel">
+    <!-- ─── CITY STAGE ─────────────────────── -->
+    <aside class="city-stage" id="city-overlay" aria-hidden="true">
+      <div class="city-stage-backdrop" id="overlay-backdrop"></div>
+      <div class="city-stage-panel">
         <button class="city-overlay-close" id="overlay-close" type="button" aria-label="关闭">
           <span></span><span></span>
         </button>
+
+        <div class="city-stage-route">
+          <span class="city-stage-route-label">游览路线</span>
+          <div class="city-stage-route-pills" id="route-pills"></div>
+        </div>
+
         <div class="city-overlay-eyebrow" id="overlay-theme">城市与记忆</div>
         <h3 class="city-overlay-title" id="overlay-title">迪奥米拉</h3>
         <div class="city-overlay-it" id="overlay-it">Diomira</div>
@@ -156,8 +163,8 @@
             <strong id="overlay-chapter">第 1 章</strong>
           </div>
           <div class="city-overlay-meta-item">
-            <span>序列</span>
-            <strong id="overlay-n">01</strong>
+            <span>路线进度</span>
+            <strong id="overlay-n">01 / 55</strong>
           </div>
         </div>
         <div class="city-overlay-nav">

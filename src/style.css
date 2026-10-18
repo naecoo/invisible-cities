@@ -1134,8 +1134,22 @@ body.is-hovering .cursor-dot {
   color: var(--paper);
 }
 
-/* ─── City overlay ──────────────────────── */
-.city-overlay {
+/* 舞台打开时压暗正文 */
+body.stage-open #scroll-root {
+  opacity: 0.18;
+  filter: blur(1px);
+  pointer-events: none;
+  transition: opacity 0.5s var(--ease), filter 0.5s var(--ease);
+}
+
+body:not(.stage-open) #scroll-root {
+  opacity: 1;
+  filter: none;
+  transition: opacity 0.5s var(--ease), filter 0.5s var(--ease);
+}
+
+/* ─── City Stage ────────────────────────── */
+.city-stage {
   position: fixed;
   inset: 0;
   z-index: 500;
@@ -1144,43 +1158,91 @@ body.is-hovering .cursor-dot {
   transition: opacity 0.45s var(--ease);
 }
 
-.city-overlay.is-open {
+.city-stage.is-open {
   opacity: 1;
   pointer-events: auto;
 }
 
-.city-overlay-backdrop {
+.city-stage-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(26, 24, 20, 0.28);
+  background: rgba(26, 24, 20, 0.16);
 }
 
-.city-overlay-panel {
+.city-stage-panel {
   position: absolute;
   top: 0;
   right: 0;
-  width: min(440px, 100%);
+  width: min(380px, 36vw);
   height: 100%;
-  background: var(--paper);
+  background: rgba(245, 241, 232, 0.95);
   border-left: 1px solid rgba(26, 24, 20, 0.1);
-  padding: clamp(36px, 5vh, 56px) clamp(28px, 4vw, 44px);
+  padding: clamp(28px, 4vh, 48px) clamp(22px, 2.6vw, 36px);
   overflow-y: auto;
-  transform: translateX(24px);
+  transform: translateX(28px);
   transition: transform 0.5s var(--ease);
   display: flex;
   flex-direction: column;
+  box-shadow: -24px 0 60px -30px rgba(26, 24, 20, 0.25);
 }
 
-.city-overlay.is-open .city-overlay-panel {
+.city-stage.is-open .city-stage-panel {
   transform: translateX(0);
+}
+
+.city-stage-route {
+  margin-top: 8px;
+  margin-bottom: 22px;
+}
+
+.city-stage-route-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--ink-faint);
+  margin-bottom: 10px;
+}
+
+.city-stage-route-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.city-stage-route-pills button {
+  border: 1px solid rgba(26, 24, 20, 0.14);
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  padding: 6px 10px;
+  cursor: none;
+  transition: border-color 0.25s, color 0.25s, background 0.25s;
+}
+
+.city-stage-route-pills button.is-active {
+  border-color: var(--vermilion);
+  color: var(--paper);
+  background: var(--vermilion);
+}
+
+.city-stage-route-pills button:hover {
+  border-color: var(--vermilion);
+  color: var(--vermilion);
+}
+
+.city-stage-route-pills button.is-active:hover {
+  color: var(--paper);
 }
 
 .city-overlay-close {
   position: absolute;
-  top: 24px;
-  right: 24px;
-  width: 36px;
-  height: 36px;
+  top: 20px;
+  right: 20px;
+  width: 34px;
+  height: 34px;
   border: 1px solid rgba(26, 24, 20, 0.15);
   background: transparent;
   cursor: none;
@@ -1213,14 +1275,14 @@ body.is-hovering .cursor-dot {
   font-size: 11px;
   letter-spacing: 0.28em;
   color: var(--vermilion);
-  margin-bottom: 18px;
-  margin-top: 12px;
+  margin-bottom: 16px;
+  margin-top: 10px;
 }
 
 .city-overlay-title {
   font-family: var(--font-display);
-  font-size: clamp(32px, 4vw, 42px);
-  letter-spacing: 0.16em;
+  font-size: clamp(28px, 3.4vw, 38px);
+  letter-spacing: 0.14em;
   font-weight: 500;
   line-height: 1.2;
   margin-bottom: 8px;
@@ -1229,63 +1291,63 @@ body.is-hovering .cursor-dot {
 .city-overlay-it {
   font-family: var(--font-latin);
   font-style: italic;
-  font-size: 16px;
+  font-size: 15px;
   letter-spacing: 0.12em;
   color: var(--ink-faint);
-  margin-bottom: 28px;
+  margin-bottom: 22px;
 }
 
 .city-overlay-rule {
   width: 48px;
   height: 2px;
   background: var(--vermilion);
-  margin-bottom: 28px;
+  margin-bottom: 22px;
 }
 
 .city-overlay-motto {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.9;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--ink);
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .city-overlay-note {
-  font-size: 14px;
-  line-height: 1.95;
-  letter-spacing: 0.05em;
+  font-size: 13px;
+  line-height: 1.9;
+  letter-spacing: 0.04em;
   color: var(--ink-soft);
-  margin-bottom: 36px;
+  margin-bottom: 28px;
 }
 
 .city-overlay-meta {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  padding: 20px 0;
+  gap: 12px;
+  padding: 16px 0;
   border-top: 1px solid rgba(26, 24, 20, 0.1);
   border-bottom: 1px solid rgba(26, 24, 20, 0.1);
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 
 .city-overlay-meta-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .city-overlay-meta-item span {
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.18em;
+  font-size: 9px;
+  letter-spacing: 0.16em;
   color: var(--ink-faint);
 }
 
 .city-overlay-meta-item strong {
   font-family: var(--font-display);
-  font-size: 14px;
-  letter-spacing: 0.1em;
+  font-size: 13px;
+  letter-spacing: 0.08em;
   font-weight: 500;
   color: var(--ink);
 }
@@ -1293,8 +1355,8 @@ body.is-hovering .cursor-dot {
 .city-overlay-nav {
   margin-top: auto;
   display: flex;
-  gap: 12px;
-  padding-top: 24px;
+  gap: 10px;
+  padding-top: 18px;
 }
 
 .city-overlay-nav button {
@@ -1303,9 +1365,9 @@ body.is-hovering .cursor-dot {
   background: transparent;
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 13px;
-  letter-spacing: 0.12em;
-  padding: 12px 8px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  padding: 11px 8px;
   cursor: none;
   transition: border-color 0.3s, background 0.3s, color 0.3s;
 }
